@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Milk, DollarSign, Users, Activity, Trash2, Download, Plus, UserPlus, ChevronLeft, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, MapPin } from 'lucide-react';
+import { Milk, DollarSign, Users, Activity, Trash2, Plus, UserPlus, ChevronLeft, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, MapPin, Calendar, Heart, AlertCircle } from 'lucide-react';
 
 // --- أدوات مساعدة (Helpers) ---
 const calculateAge = (dateString) => {
@@ -17,6 +17,21 @@ const calculateAge = (dateString) => {
 const formatDate = (dateString) => {
   if (!dateString) return "";
   return new Date(dateString).toLocaleDateString('ar-EG');
+};
+
+const addDays = (date, days) => {
+    if (!date) return null;
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result.toISOString().split('T')[0];
+};
+
+const getDaysDifference = (dateString) => {
+    if (!dateString) return null;
+    const today = new Date();
+    const target = new Date(dateString);
+    const diffTime = target - today;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 };
 
 // --- مكونات الواجهة (UI Components) ---
@@ -76,10 +91,8 @@ export default function App() {
   const [milkRecords, setMilkRecords] = useState(() => JSON.parse(localStorage.getItem('milkRecords')) || []);
   const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('sales')) || []);
   const [customers, setCustomers] = useState(() => JSON.parse(localStorage.getItem('customers')) || []);
-  // حالة الأعلاف الجديدة
   const [feedRecords, setFeedRecords] = useState(() => JSON.parse(localStorage.getItem('feedRecords')) || []);
 
-  // Persist Data
   useEffect(() => {
     localStorage.setItem('cows', JSON.stringify(cows));
     localStorage.setItem('milkRecords', JSON.stringify(milkRecords));
@@ -117,39 +130,71 @@ export default function App() {
     const totalFeedCost = feedRecords.reduce((sum, f) => sum + Number(f.totalCost), 0);
     const netProfit = totalSales - totalFeedCost;
     
-    // توصيات ذكية
-    const getRecommendation = () => {
-      if (totalMilk === 0) return "ابدأ بتسجيل الحلبات للحصول على توصيات.";
-      const feedPerMilk = totalFeedCost / totalMilk;
-      
-      if (netProfit < 0) return "⚠️ تنبيه: المزرعة تخسر! تكلفة العلف أعلى من المبيعات. راجع كميات العلف أو ابحث عن مورد أرخص.";
-      if (feedPerMilk > 400) return "⚠️ تكلفة إنتاج الرطل مرتفعة جداً. حاول تقليل الهدر في العلف.";
-      return "✅ الأداء ممتاز! استمر في الحفاظ على توازن العلف والإنتاج.";
+    // --- منطق التنبيهات (Reproduction Alerts) ---
+    const getAlerts = () => {
+      const alerts = [];
+      cows.forEach(cow => {
+        if (cow.inseminationDate) {
+           const checkDate = addDays(cow.inseminationDate, 45);
+           const dryDate = addDays(cow.inseminationDate, 220); // 283 - 60 roughly
+           const birthDate = addDays(cow.inseminationDate, 283);
+           
+           const daysToCheck = getDaysDifference(checkDate);
+           const daysToDry = getDaysDifference(dryDate);
+           const daysToBirth = getDaysDifference(birthDate);
+
+           if (daysToCheck >= 0 && daysToCheck <= 7) {
+             alerts.push({ type: 'check', msg: `جس حمل للبقرة #${cow.tag}`, days: daysToCheck });
+           }
+           if (daysToDry >= 0 && daysToDry <= 14) {
+             alerts.push({ type: 'dry', msg: `موعد تجفيف البقرة #${cow.tag}`, days: daysToDry });
+           }
+           if (daysToBirth >= 0 && daysToBirth <= 10) {
+             alerts.push({ type: 'birth', msg: `ولادة قريبة للبقرة #${cow.tag}`, days: daysToBirth });
+           }
+        }
+      });
+      return alerts.sort((a,b) => a.days - b.days);
     };
 
-    const generateReport = () => {
-      const text = `📊 *تقرير المزرعة المالي*
-      
-💰 *إجمالي المبيعات:* ${totalSales.toLocaleString()} ج.س
-🌾 *تكلفة العلف:* ${totalFeedCost.toLocaleString()} ج.س
-📈 *صافي الربح:* ${netProfit.toLocaleString()} ج.س
-      
-🥛 *الإنتاج:* ${totalMilk} رطل
-🐮 *عدد القطيع:* ${cows.length}
+    const alerts = getAlerts();
 
-💡 *التوصية:* ${getRecommendation()}
-      
-_تم الإنشاء عبر تطبيق مزرعتي_`;
+    const generateReport = () => {
+      const text = `📊 *تقرير المزرعة اليومي*\n\n💰 *صافي الربح:* ${netProfit.toLocaleString()} ج.س\n🥛 *الإنتاج:* ${totalMilk} رطل\n🐮 *القطيع:* ${cows.length} رأس\n\n⚠️ *تنبيهات:* يوجد ${alerts.length} مهام تتطلب انتباهك.`;
       shareViaWhatsapp(text);
     };
 
     return (
       <div className="space-y-4 pb-20 animate-fade-in">
-        {/* ملخص الربح والخسارة */}
+        
+        {/* تنبيهات التناسل */}
+        {alerts.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-bold text-gray-700 text-sm px-1">⚠️ مهام عاجلة</h3>
+            {alerts.map((alert, idx) => (
+              <div key={idx} className={`p-4 rounded-xl border-r-4 shadow-sm flex items-center justify-between ${
+                alert.type === 'birth' ? 'bg-purple-50 border-purple-500' : 
+                alert.type === 'dry' ? 'bg-orange-50 border-orange-500' : 'bg-blue-50 border-blue-500'
+              }`}>
+                <div className="flex items-center gap-3">
+                   {alert.type === 'birth' && <Heart size={20} className="text-purple-500 fill-purple-200"/>}
+                   {alert.type === 'dry' && <AlertCircle size={20} className="text-orange-500"/>}
+                   {alert.type === 'check' && <Activity size={20} className="text-blue-500"/>}
+                   <div>
+                     <p className="font-bold text-gray-800 text-sm">{alert.msg}</p>
+                     <p className="text-xs text-gray-500">متبقي {alert.days} يوم</p>
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* الكروت المالية */}
         <div className="bg-gray-900 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
            <div className="absolute top-0 left-0 w-20 h-20 bg-white opacity-5 rounded-full -translate-x-10 -translate-y-10"></div>
            <div className="flex justify-between items-center mb-4">
-              <span className="text-gray-400 text-sm font-bold">صافي الربح (المبيعات - العلف)</span>
+              <span className="text-gray-400 text-sm font-bold">صافي الربح</span>
               {netProfit >= 0 ? <TrendingUp className="text-emerald-400"/> : <TrendingDown className="text-rose-400"/>}
            </div>
            <p className={`text-4xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -158,147 +203,26 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-emerald-50 border-emerald-100">
-            <div className="flex justify-between mb-2 opacity-80"><span className="text-xs text-emerald-800 font-bold">دخل المبيعات</span><DollarSign size={16} className="text-emerald-600"/></div>
-            <p className="text-xl font-bold text-emerald-700">{totalSales.toLocaleString()}</p>
+          <Card className="bg-emerald-50 border-emerald-100 p-3">
+            <p className="text-xs text-emerald-800 font-bold mb-1">المبيعات</p>
+            <p className="text-lg font-bold text-emerald-700">{totalSales.toLocaleString()}</p>
           </Card>
-          <Card className="bg-amber-50 border-amber-100">
-            <div className="flex justify-between mb-2 opacity-80"><span className="text-xs text-amber-800 font-bold">صرف العلف</span><Wheat size={16} className="text-amber-600"/></div>
-            <p className="text-xl font-bold text-amber-700">{totalFeedCost.toLocaleString()}</p>
+          <Card className="bg-amber-50 border-amber-100 p-3">
+            <p className="text-xs text-amber-800 font-bold mb-1">العلف</p>
+            <p className="text-lg font-bold text-amber-700">{totalFeedCost.toLocaleString()}</p>
           </Card>
         </div>
 
-        {/* بطاقة التوصيات */}
-        <Card className="border-l-4 border-l-blue-500">
-          <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <Activity size={18} className="text-blue-500"/> تحليل وتوصيات
-          </h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            {getRecommendation()}
-          </p>
-        </Card>
-
         <Button onClick={generateReport} className="w-full bg-green-600 hover:bg-green-700">
-          <Share2 size={18} /> مشاركة التقرير المالي
+          <Share2 size={18} /> مشاركة التقرير
         </Button>
       </div>
     );
   };
 
-  // --- قسم إدارة الأعلاف (جديد) ---
-  const FeedManager = () => {
-    const [view, setView] = useState('list');
-    const [newFeed, setNewFeed] = useState({ 
-        id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] 
-    });
-
-    const handleSaveFeed = () => {
-        if (!newFeed.type || !newFeed.price || !newFeed.quantity) return showNotify("البيانات ناقصة!");
-        const totalCost = Number(newFeed.price) * Number(newFeed.quantity); // إذا كان السعر للوحدة
-        // أو إذا كان السعر إجمالي، يعتمد على طريقة إدخالك. سنفترض هنا السعر للوحدة (للجوال مثلاً)
-        const record = { ...newFeed, totalCost: totalCost };
-
-        if (newFeed.id) {
-            setFeedRecords(feedRecords.map(f => f.id === newFeed.id ? record : f));
-            showNotify("تم تعديل سجل العلف");
-        } else {
-            setFeedRecords([{ ...record, id: Date.now() }, ...feedRecords]);
-            showNotify("تمت إضافة العلف 🌾");
-        }
-        setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] });
-        setView('list');
-    };
-
-    const handleEditFeed = (rec) => {
-        setNewFeed(rec); // ملاحظة: totalCost يحسب عند الحفظ
-        setView('new');
-    };
-
-    if (view === 'new') return (
-        <div className="space-y-4 pb-20 animate-slide-up">
-            <div className="flex items-center gap-2 mb-2">
-                <button onClick={() => setView('list')} className="p-2 bg-gray-100 rounded-lg"><ChevronLeft size={20}/></button>
-                <h2 className="font-bold text-xl text-gray-800">{newFeed.id ? 'تعديل شراء' : 'شراء علف جديد'}</h2>
-            </div>
-            
-            <Card className="space-y-3">
-                <Input label="نوع العلف (ردة، برسيم، مركزات...)" value={newFeed.type} onChange={e => setNewFeed({...newFeed, type: e.target.value})} />
-                
-                <div className="flex gap-3">
-                    <div className="flex-1">
-                        <Input label="الكمية" type="number" value={newFeed.quantity} onChange={e => setNewFeed({...newFeed, quantity: e.target.value})} />
-                    </div>
-                    <div className="w-1/3">
-                        <label className="text-xs font-bold text-gray-400 mb-1 block">الوحدة</label>
-                        <select className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl" value={newFeed.unit} onChange={e => setNewFeed({...newFeed, unit: e.target.value})}>
-                            <option>جوال</option>
-                            <option>طن</option>
-                            <option>قنطار</option>
-                            <option>حزمة</option>
-                            <option>كيلو</option>
-                        </select>
-                    </div>
-                </div>
-
-                <Input label="سعر الوحدة (للجوال/الطن...)" type="number" value={newFeed.price} onChange={e => setNewFeed({...newFeed, price: e.target.value})} />
-                
-                <div className="bg-amber-50 p-3 rounded-xl flex justify-between items-center border border-amber-100">
-                    <span className="text-amber-800 font-bold text-sm">التكلفة الإجمالية:</span>
-                    <span className="text-xl font-bold text-amber-900">{(Number(newFeed.quantity || 0) * Number(newFeed.price || 0)).toLocaleString()} ج.س</span>
-                </div>
-
-                <Input label="اسم التاجر" value={newFeed.merchant} onChange={e => setNewFeed({...newFeed, merchant: e.target.value})} />
-                <Input label="مكان الشراء" value={newFeed.location} onChange={e => setNewFeed({...newFeed, location: e.target.value})} />
-                <Input label="تاريخ الشراء" type="date" value={newFeed.date} onChange={e => setNewFeed({...newFeed, date: e.target.value})} />
-
-                <Button onClick={handleSaveFeed} className="w-full bg-amber-600 hover:bg-amber-700 text-white">حفظ الفاتورة</Button>
-            </Card>
-        </div>
-    );
-
-    return (
-        <div className="space-y-4 pb-20">
-            <Button onClick={() => {setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] }); setView('new')}} className="w-full bg-amber-600 hover:bg-amber-700 text-white">
-              <Plus size={18} /> تسجيل شراء علف
-            </Button>
-            
-            <div className="space-y-3 mt-4">
-               {feedRecords.length === 0 && <p className="text-center text-gray-400 py-10">لا توجد سجلات أعلاف</p>}
-               {feedRecords.map(feed => (
-                   <div key={feed.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
-                       <div className="flex justify-between items-start mb-2">
-                           <div>
-                               <h4 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Wheat size={16} className="text-amber-500"/> {feed.type}</h4>
-                               <p className="text-xs text-gray-400 mt-1">{formatDate(feed.date)}</p>
-                           </div>
-                           <div className="text-left">
-                               <p className="font-bold text-lg text-amber-700">{feed.totalCost.toLocaleString()} ج.س</p>
-                               <p className="text-xs text-gray-500">{feed.quantity} {feed.unit} × {feed.price}</p>
-                           </div>
-                       </div>
-                       
-                       <div className="flex items-center gap-4 text-xs text-gray-500 mb-3 bg-gray-50 p-2 rounded-lg">
-                           <span className="flex items-center gap-1"><UserPlus size={12}/> {feed.merchant || '-'}</span>
-                           <span className="flex items-center gap-1"><MapPin size={12}/> {feed.location || '-'}</span>
-                       </div>
-
-                       <div className="flex gap-2 justify-end border-t pt-2 border-gray-50">
-                            <button onClick={() => handleEditFeed(feed)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg flex items-center gap-1 text-xs font-bold"><Edit2 size={14}/> تعديل</button>
-                            <button onClick={() => handleDelete('سجل العلف', () => setFeedRecords(feedRecords.filter(f => f.id !== feed.id)))} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg flex items-center gap-1 text-xs font-bold"><Trash2 size={14}/> حذف</button>
-                       </div>
-                   </div>
-               ))}
-            </div>
-        </div>
-    );
-  };
-
-  // --- بقية الـ Views كما هي مع تعديلات طفيفة ---
-  // (تم دمج منطق الـ CowsView و MilkView و SalesManager هنا للاختصار، لكنك ستنسخ الكود كاملاً)
-
   const CowsView = () => {
     const [isEditing, setIsEditing] = useState(false);
-    const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0 });
+    const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
 
     const handleSubmit = () => {
       if (!form.tag) return showNotify("رقم البقرة مطلوب!");
@@ -310,7 +234,7 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
         setCows([...cows, { ...form, id: Date.now() }]);
         showNotify("تمت الإضافة بنجاح ✨");
       }
-      setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0 });
+      setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
     };
 
     const handleEdit = (cow) => {
@@ -324,21 +248,41 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
         <Card className={isEditing ? "border-2 border-blue-400" : ""}>
           <div className="flex justify-between items-center mb-3">
              <h3 className="font-bold text-gray-700">{isEditing ? 'تعديل بيانات البقرة' : 'إضافة بقرة جديدة'}</h3>
-             {isEditing && <button onClick={() => {setIsEditing(false); setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0 })}} className="text-xs text-red-500 font-bold">إلغاء</button>}
+             {isEditing && <button onClick={() => {setIsEditing(false); setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' })}} className="text-xs text-red-500 font-bold">إلغاء</button>}
           </div>
+          
           <div className="flex gap-2">
             <Input placeholder="الرقم (Tag)" value={form.tag} onChange={e => setForm({...form, tag: e.target.value})} />
             <Input placeholder="الاسم" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
           </div>
+          
+          <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 mb-3">
+             <h4 className="text-xs font-bold text-purple-800 mb-2 flex items-center gap-1"><Heart size={12}/> بيانات التناسل</h4>
+             <div className="flex gap-2">
+                <div className="flex-1">
+                   <label className="text-[10px] font-bold text-gray-500">آخر تلقيح</label>
+                   <input type="date" value={form.inseminationDate} onChange={e => setForm({...form, inseminationDate: e.target.value})} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div className="w-1/3">
+                   <label className="text-[10px] font-bold text-gray-500">الولادات</label>
+                   <input type="number" value={form.calvings} onChange={e => setForm({...form, calvings: e.target.value})} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm" />
+                </div>
+             </div>
+             {form.inseminationDate && (
+                <div className="mt-2 text-[10px] text-purple-700 space-y-1">
+                   <p>• موعد الجس: <span className="font-bold">{formatDate(addDays(form.inseminationDate, 45))}</span></p>
+                   <p>• موعد الولادة: <span className="font-bold">{formatDate(addDays(form.inseminationDate, 283))}</span></p>
+                </div>
+             )}
+          </div>
+
           <div className="flex gap-2">
             <div className="flex-1">
                <label className="text-xs font-bold text-gray-400 mr-1">تاريخ الميلاد</label>
                <input type="date" value={form.birthDate} onChange={e => setForm({...form, birthDate: e.target.value})} className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl mb-3" />
             </div>
-            <div className="w-1/3">
-               <Input label="الولادات" type="number" value={form.calvings} onChange={e => setForm({...form, calvings: e.target.value})} />
-            </div>
           </div>
+
           <div className="flex gap-2 mb-3">
             {['milking', 'dry', 'sick'].map(st => (
               <button key={st} onClick={() => setForm({...form, status: st})}
@@ -352,8 +296,14 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
           </div>
           <Button onClick={handleSubmit} className="w-full">{isEditing ? 'حفظ التعديلات' : 'إضافة'}</Button>
         </Card>
+
         <div className="space-y-2">
-          {cows.map(cow => (
+          {cows.map(cow => {
+             const isPregnant = !!cow.inseminationDate;
+             const daysPregnant = isPregnant ? getDaysDifference(new Date().toISOString()) * -1 : 0; // Negative difference means past
+             const expectedBirth = isPregnant ? addDays(cow.inseminationDate, 283) : null;
+             
+             return (
             <div key={cow.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative group">
               <div className="flex justify-between items-start">
                  <div className="flex items-center gap-3">
@@ -361,8 +311,14 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
                       {cow.tag}
                     </div>
                     <div>
-                      <p className="font-bold text-gray-800">{cow.name || 'بدون اسم'}</p>
-                      <p className="text-xs text-gray-400">العمر: {calculateAge(cow.birthDate)} • الولادات: {cow.calvings}</p>
+                      <p className="font-bold text-gray-800 flex items-center gap-2">
+                          #{cow.tag} {cow.name}
+                          {isPregnant && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full border border-purple-200">عشار</span>}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-1">
+                          {cow.status === 'milking' ? 'تنتج حليب' : 'خارج الإنتاج'} 
+                          {isPregnant && ` • ولادة: ${formatDate(expectedBirth)}`}
+                      </p>
                     </div>
                  </div>
                  <div className="flex gap-2">
@@ -371,7 +327,7 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
                  </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </div>
     );
@@ -446,7 +402,6 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
         const total = Number(newSale.amount) * Number(newSale.price);
         const paid = newSale.paid === '' ? total : Number(newSale.paid);
         const saleData = { ...newSale, total, paid, debt: total - paid };
-
         if (newSale.id) {
             setSales(sales.map(s => s.id === newSale.id ? saleData : s));
             showNotify("تم تحديث البيع");
@@ -557,6 +512,82 @@ _تم الإنشاء عبر تطبيق مزرعتي_`;
            </div>
         )}
       </div>
+    );
+  };
+
+  const FeedManager = () => {
+    const [view, setView] = useState('list');
+    const [newFeed, setNewFeed] = useState({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] });
+    const handleSaveFeed = () => {
+        if (!newFeed.type || !newFeed.price || !newFeed.quantity) return showNotify("البيانات ناقصة!");
+        const totalCost = Number(newFeed.price) * Number(newFeed.quantity); 
+        const record = { ...newFeed, totalCost: totalCost };
+        if (newFeed.id) {
+            setFeedRecords(feedRecords.map(f => f.id === newFeed.id ? record : f));
+            showNotify("تم تعديل سجل العلف");
+        } else {
+            setFeedRecords([{ ...record, id: Date.now() }, ...feedRecords]);
+            showNotify("تمت إضافة العلف 🌾");
+        }
+        setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] });
+        setView('list');
+    };
+    const handleEditFeed = (rec) => { setNewFeed(rec); setView('new'); };
+
+    if (view === 'new') return (
+        <div className="space-y-4 pb-20 animate-slide-up">
+            <div className="flex items-center gap-2 mb-2">
+                <button onClick={() => setView('list')} className="p-2 bg-gray-100 rounded-lg"><ChevronLeft size={20}/></button>
+                <h2 className="font-bold text-xl text-gray-800">{newFeed.id ? 'تعديل شراء' : 'شراء علف جديد'}</h2>
+            </div>
+            <Card className="space-y-3">
+                <Input label="نوع العلف" value={newFeed.type} onChange={e => setNewFeed({...newFeed, type: e.target.value})} />
+                <div className="flex gap-3">
+                    <div className="flex-1"> <Input label="الكمية" type="number" value={newFeed.quantity} onChange={e => setNewFeed({...newFeed, quantity: e.target.value})} /> </div>
+                    <div className="w-1/3">
+                        <label className="text-xs font-bold text-gray-400 mb-1 block">الوحدة</label>
+                        <select className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl" value={newFeed.unit} onChange={e => setNewFeed({...newFeed, unit: e.target.value})}>
+                            <option>جوال</option><option>طن</option><option>قنطار</option><option>حزمة</option><option>كيلو</option>
+                        </select>
+                    </div>
+                </div>
+                <Input label="سعر الوحدة" type="number" value={newFeed.price} onChange={e => setNewFeed({...newFeed, price: e.target.value})} />
+                <div className="bg-amber-50 p-3 rounded-xl flex justify-between items-center border border-amber-100">
+                    <span className="text-amber-800 font-bold text-sm">التكلفة:</span>
+                    <span className="text-xl font-bold text-amber-900">{(Number(newFeed.quantity || 0) * Number(newFeed.price || 0)).toLocaleString()} ج.س</span>
+                </div>
+                <Input label="اسم التاجر" value={newFeed.merchant} onChange={e => setNewFeed({...newFeed, merchant: e.target.value})} />
+                <Input label="مكان الشراء" value={newFeed.location} onChange={e => setNewFeed({...newFeed, location: e.target.value})} />
+                <Input label="تاريخ الشراء" type="date" value={newFeed.date} onChange={e => setNewFeed({...newFeed, date: e.target.value})} />
+                <Button onClick={handleSaveFeed} className="w-full bg-amber-600 hover:bg-amber-700 text-white">حفظ الفاتورة</Button>
+            </Card>
+        </div>
+    );
+    return (
+        <div className="space-y-4 pb-20">
+            <Button onClick={() => {setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', location: '', date: new Date().toISOString().split('T')[0] }); setView('new')}} className="w-full bg-amber-600 hover:bg-amber-700 text-white"><Plus size={18} /> تسجيل شراء علف</Button>
+            <div className="space-y-3 mt-4">
+               {feedRecords.length === 0 && <p className="text-center text-gray-400 py-10">لا توجد سجلات أعلاف</p>}
+               {feedRecords.map(feed => (
+                   <div key={feed.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
+                       <div className="flex justify-between items-start mb-2">
+                           <div>
+                               <h4 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Wheat size={16} className="text-amber-500"/> {feed.type}</h4>
+                               <p className="text-xs text-gray-400 mt-1">{formatDate(feed.date)}</p>
+                           </div>
+                           <div className="text-left">
+                               <p className="font-bold text-lg text-amber-700">{feed.totalCost.toLocaleString()} ج.س</p>
+                               <p className="text-xs text-gray-500">{feed.quantity} {feed.unit} × {feed.price}</p>
+                           </div>
+                       </div>
+                       <div className="flex gap-2 justify-end border-t pt-2 border-gray-50">
+                            <button onClick={() => handleEditFeed(feed)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg flex items-center gap-1 text-xs font-bold"><Edit2 size={14}/> تعديل</button>
+                            <button onClick={() => handleDelete('سجل العلف', () => setFeedRecords(feedRecords.filter(f => f.id !== feed.id)))} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg flex items-center gap-1 text-xs font-bold"><Trash2 size={14}/> حذف</button>
+                       </div>
+                   </div>
+               ))}
+            </div>
+        </div>
     );
   };
 
