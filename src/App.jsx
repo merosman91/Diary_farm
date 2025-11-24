@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Milk, DollarSign, Users, Activity, Trash2, Plus, ChevronLeft, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, MapPin, Calendar, Heart, AlertCircle, Syringe, Stethoscope, Package, MinusCircle, AlertTriangle } from 'lucide-react';
+import { Milk, DollarSign, Users, Activity, Trash2, Plus, ChevronLeft, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, MapPin, Calendar, Heart, AlertCircle, Stethoscope, Package, MinusCircle, AlertTriangle, Download, History, BarChart3, PieChart } from 'lucide-react';
 
 // --- أدوات مساعدة (Helpers) ---
 const calculateAge = (dateString) => {
@@ -8,9 +8,7 @@ const calculateAge = (dateString) => {
   const birthDate = new Date(dateString);
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
   return age + " سنة";
 };
 
@@ -34,7 +32,7 @@ const getDaysDifference = (dateString) => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 };
 
-// --- مكونات الواجهة (UI Components) ---
+// --- مكونات الواجهة والرسوم البيانية (UI & Charts) ---
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -64,7 +62,6 @@ const Button = ({ children, onClick, variant = 'primary', className = "" }) => {
     danger: "bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100",
     ghost: "bg-gray-50 text-gray-600 hover:bg-gray-100",
     warning: "bg-amber-500 text-white hover:bg-amber-600",
-    outline: "border-2 border-gray-200 text-gray-600 hover:bg-gray-50"
   };
   return (
     <button onClick={onClick} className={`px-4 py-3 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}>
@@ -80,6 +77,31 @@ const Input = ({ label, ...props }) => (
   </div>
 );
 
+// مكون رسم بياني بسيط (CSS Bar Chart)
+const SimpleBarChart = ({ data, labelKey, valueKey, color = "bg-blue-500" }) => {
+    if(!data || data.length === 0) return <p className="text-center text-gray-400 text-xs py-4">لا توجد بيانات للرسم</p>;
+    const maxVal = Math.max(...data.map(d => Number(d[valueKey])));
+    return (
+        <div className="flex items-end gap-2 h-32 mt-4 pb-2 border-b border-gray-100">
+            {data.slice(-7).map((item, idx) => (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-1 group">
+                    <div className="relative w-full flex justify-end flex-col h-full">
+                        <div 
+                            style={{ height: `${(Number(item[valueKey]) / maxVal) * 100}%` }} 
+                            className={`w-full ${color} rounded-t-md opacity-80 group-hover:opacity-100 transition-all relative`}
+                        >
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-gray-800 text-white px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {item[valueKey]}
+                            </span>
+                        </div>
+                    </div>
+                    <span className="text-[9px] text-gray-400 font-bold rotate-0 truncate w-full text-center">{item[labelKey]}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 // --- التطبيق الرئيسي ---
 
 export default function App() {
@@ -92,9 +114,9 @@ export default function App() {
   const [milkRecords, setMilkRecords] = useState(() => JSON.parse(localStorage.getItem('milkRecords')) || []);
   const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('sales')) || []);
   const [customers, setCustomers] = useState(() => JSON.parse(localStorage.getItem('customers')) || []);
-  const [feedRecords, setFeedRecords] = useState(() => JSON.parse(localStorage.getItem('feedRecords')) || []); // مشتريات
-  const [feedConsumption, setFeedConsumption] = useState(() => JSON.parse(localStorage.getItem('feedConsumption')) || []); // استهلاك
-  const [healthRecords, setHealthRecords] = useState(() => JSON.parse(localStorage.getItem('healthRecords')) || []); // علاجات
+  const [feedRecords, setFeedRecords] = useState(() => JSON.parse(localStorage.getItem('feedRecords')) || []); 
+  const [feedConsumption, setFeedConsumption] = useState(() => JSON.parse(localStorage.getItem('feedConsumption')) || []); 
+  const [healthRecords, setHealthRecords] = useState(() => JSON.parse(localStorage.getItem('healthRecords')) || []); 
 
   useEffect(() => {
     localStorage.setItem('cows', JSON.stringify(cows));
@@ -106,229 +128,141 @@ export default function App() {
     localStorage.setItem('healthRecords', JSON.stringify(healthRecords));
   }, [cows, milkRecords, customers, sales, feedRecords, feedConsumption, healthRecords]);
 
-  const showNotify = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
-  };
+  const showNotify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+  const handleDelete = (title, action) => { setConfirmDialog({ isOpen: true, title: `هل أنت متأكد من حذف ${title}؟`, onConfirm: () => { action(); setConfirmDialog({ ...confirmDialog, isOpen: false }); showNotify("تم الحذف بنجاح 🗑️"); } }); };
+  const shareViaWhatsapp = (text) => { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); };
 
-  const handleDelete = (title, action) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: `هل أنت متأكد من حذف ${title}؟`,
-      onConfirm: () => {
-        action();
-        setConfirmDialog({ ...confirmDialog, isOpen: false });
-        showNotify("تم الحذف بنجاح 🗑️");
-      }
-    });
-  };
-
-  const shareViaWhatsapp = (text) => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  // وظيفة النسخ الاحتياطي
+  const downloadBackup = () => {
+    const data = { cows, milkRecords, sales, customers, feedRecords, feedConsumption, healthRecords };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `farm_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    showNotify("تم تحميل ملف النسخة الاحتياطية 📥");
   };
 
   // --- Views ---
 
   const Dashboard = () => {
+    // 1. Financials
     const totalMilk = milkRecords.reduce((sum, r) => sum + Number(r.amount), 0);
     const totalSales = sales.reduce((sum, s) => sum + Number(s.total), 0);
     const totalFeedCost = feedRecords.reduce((sum, f) => sum + Number(f.totalCost), 0);
     const totalHealthCost = healthRecords.reduce((sum, h) => sum + Number(h.cost || 0), 0);
-    const netProfit = totalSales - (totalFeedCost + totalHealthCost);
+    const totalExpenses = totalFeedCost + totalHealthCost;
+    const netProfit = totalSales - totalExpenses;
     
-    // Alerts Logic
+    // 2. Production Chart Data (Last 7 entries grouped by date)
+    const milkByDate = milkRecords.reduce((acc, curr) => {
+        acc[curr.date] = (acc[curr.date] || 0) + Number(curr.amount);
+        return acc;
+    }, {});
+    const chartData = Object.keys(milkByDate).sort().slice(-7).map(date => ({ date: date.slice(5), amount: milkByDate[date] }));
+
+    // 3. Reproduction Stats
+    const pregnantCount = cows.filter(c => c.inseminationDate).length;
+    const totalCows = cows.length;
+
+    // 4. Alerts
     const getAlerts = () => {
       const alerts = [];
-      // 1. تنبيهات التناسل
       cows.forEach(cow => {
         if (cow.inseminationDate) {
-           const checkDate = addDays(cow.inseminationDate, 45);
-           const birthDate = addDays(cow.inseminationDate, 283);
-           const daysToCheck = getDaysDifference(checkDate);
-           const daysToBirth = getDaysDifference(birthDate);
-
-           if (daysToCheck >= 0 && daysToCheck <= 7) alerts.push({ type: 'check', msg: `جس حمل للبقرة #${cow.tag}`, days: daysToCheck });
-           if (daysToBirth >= 0 && daysToBirth <= 14) alerts.push({ type: 'birth', msg: `ولادة قريبة للبقرة #${cow.tag}`, days: daysToBirth });
+           const daysToBirth = getDaysDifference(addDays(cow.inseminationDate, 283));
+           if (daysToBirth >= 0 && daysToBirth <= 14) alerts.push({ type: 'birth', msg: `ولادة قريبة: بقرة #${cow.tag}`, days: daysToBirth });
         }
       });
-      // 2. تنبيهات المخزون
+      // Stock Alerts
       const stock = {};
       feedRecords.forEach(r => stock[r.type] = (stock[r.type] || 0) + Number(r.quantity));
       feedConsumption.forEach(r => stock[r.type] = (stock[r.type] || 0) - Number(r.quantity));
-      Object.entries(stock).forEach(([type, qty]) => {
-          if (qty <= 5) alerts.push({ type: 'stock', msg: `مخزون ${type} منخفض جداً!`, qty });
-      });
-
+      Object.entries(stock).forEach(([type, qty]) => { if (qty <= 5) alerts.push({ type: 'stock', msg: `مخزون منخفض: ${type}`, qty }); });
       return alerts;
     };
     const alerts = getAlerts();
 
-    const generateReport = () => {
-      const text = `📊 *تقرير المزرعة الشامل*\n\n💰 *صافي الربح:* ${netProfit.toLocaleString()} ج.س\n🥛 *الإنتاج:* ${totalMilk} رطل\n💊 *تكاليف العلاج:* ${totalHealthCost.toLocaleString()} ج.س\n🌾 *تكاليف العلف:* ${totalFeedCost.toLocaleString()} ج.س\n\n⚠️ *تنبيهات:* ${alerts.length} مهام عاجلة.`;
-      shareViaWhatsapp(text);
-    };
-
     return (
       <div className="space-y-4 pb-20 animate-fade-in">
+        {/* التنبيهات */}
         {alerts.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-bold text-gray-700 text-sm px-1">⚠️ تنبيهات هامة</h3>
-            {alerts.map((alert, idx) => (
-              <div key={idx} className={`p-3 rounded-xl border-r-4 shadow-sm flex items-center justify-between text-sm ${
-                alert.type === 'stock' ? 'bg-red-50 border-red-500' : 'bg-blue-50 border-blue-500'
-              }`}>
-                <div className="flex items-center gap-2">
-                   {alert.type === 'stock' ? <AlertTriangle size={16} className="text-red-500"/> : <Activity size={16} className="text-blue-500"/>}
-                   <span className="font-bold text-gray-800">{alert.msg}</span>
-                </div>
-                {alert.qty !== undefined && <span className="font-bold text-red-600">{alert.qty} متبقي</span>}
-              </div>
-            ))}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+             <h3 className="text-orange-800 font-bold text-sm mb-2 flex items-center gap-1"><AlertTriangle size={16}/> إجراءات مطلوبة</h3>
+             <div className="space-y-1">
+                {alerts.map((alert, idx) => (
+                    <div key={idx} className="flex justify-between text-xs bg-white p-2 rounded shadow-sm">
+                        <span className="font-bold text-gray-700">{alert.msg}</span>
+                        <span className="text-orange-600 font-bold">{alert.days ? `بعد ${alert.days} يوم` : `متبقي ${alert.qty}`}</span>
+                    </div>
+                ))}
+             </div>
           </div>
         )}
 
-        <div className="bg-gray-900 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
+        {/* صافي الربح */}
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
            <div className="flex justify-between items-center mb-4">
-              <span className="text-gray-400 text-sm font-bold">صافي الربح</span>
+              <span className="text-gray-300 text-sm font-bold">صافي الأرباح</span>
               {netProfit >= 0 ? <TrendingUp className="text-emerald-400"/> : <TrendingDown className="text-rose-400"/>}
            </div>
            <p className={`text-4xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
              {netProfit.toLocaleString()} <span className="text-sm text-white opacity-60 font-normal">ج.س</span>
            </p>
+           <div className="mt-4 flex gap-2 text-xs opacity-80">
+                <span className="flex items-center gap-1"><DollarSign size={12}/> مبيعات: {totalSales.toLocaleString()}</span>
+                <span className="text-rose-300 flex items-center gap-1"><MinusCircle size={12}/> مصاريف: {totalExpenses.toLocaleString()}</span>
+           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-amber-50 border-amber-100 p-3">
-            <p className="text-xs text-amber-800 font-bold mb-1">مصروفات العلف</p>
-            <p className="text-lg font-bold text-amber-700">{totalFeedCost.toLocaleString()}</p>
-          </Card>
-          <Card className="bg-rose-50 border-rose-100 p-3">
-            <p className="text-xs text-rose-800 font-bold mb-1">مصروفات العلاج</p>
-            <p className="text-lg font-bold text-rose-700">{totalHealthCost.toLocaleString()}</p>
-          </Card>
-        </div>
-        <Button onClick={generateReport} className="w-full bg-green-600 hover:bg-green-700"><Share2 size={18} /> مشاركة التقرير</Button>
-      </div>
-    );
-  };
-
-  const CowsView = () => {
-    // ... (Cows logic remains mostly same, adding Health Modal)
-    const [isEditing, setIsEditing] = useState(false);
-    const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
-    const [showHealthModal, setShowHealthModal] = useState(false);
-    const [selectedCowForHealth, setSelectedCowForHealth] = useState(null);
-    const [newHealthRecord, setNewHealthRecord] = useState({ type: 'treatment', description: '', cost: '', withdrawalDays: 0, date: new Date().toISOString().split('T')[0] });
-
-    // Cow Handlers
-    const handleSubmit = () => {
-      if (!form.tag) return showNotify("رقم البقرة مطلوب!");
-      if (isEditing) { setCows(cows.map(c => c.id === form.id ? { ...form } : c)); setIsEditing(false); } 
-      else { setCows([...cows, { ...form, id: Date.now() }]); }
-      setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
-      showNotify(isEditing ? "تم التعديل" : "تمت الإضافة");
-    };
-    const handleEdit = (cow) => { setForm(cow); setIsEditing(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    
-    // Health Handlers
-    const openHealth = (cow) => { setSelectedCowForHealth(cow); setShowHealthModal(true); };
-    const addHealthRecord = () => {
-        if(!newHealthRecord.description) return;
-        setHealthRecords([...healthRecords, { ...newHealthRecord, id: Date.now(), cowId: selectedCowForHealth.id }]);
-        setNewHealthRecord({ type: 'treatment', description: '', cost: '', withdrawalDays: 0, date: new Date().toISOString().split('T')[0] });
-        showNotify("تم تسجيل الحالة الصحية");
-    };
-
-    // Check withdrawal
-    const checkWithdrawal = (cowId) => {
-        const records = healthRecords.filter(r => r.cowId === cowId && Number(r.withdrawalDays) > 0);
-        for(let r of records) {
-            const endDate = addDays(r.date, r.withdrawalDays);
-            const daysLeft = getDaysDifference(endDate);
-            if(daysLeft > 0) return { isUnsafe: true, daysLeft };
-        }
-        return { isUnsafe: false };
-    };
-
-    return (
-      <div className="space-y-4 pb-20">
-        {/* Cow Form Card (Collapsed for brevity in this view, same as before) */}
-        <Card className={isEditing ? "border-2 border-blue-400" : ""}>
-          <div className="flex justify-between items-center mb-3">
-             <h3 className="font-bold text-gray-700">{isEditing ? 'تعديل بقرة' : 'إضافة بقرة'}</h3>
-             {isEditing && <button onClick={() => {setIsEditing(false); setForm({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' })}} className="text-xs text-red-500 font-bold">إلغاء</button>}
-          </div>
-          <div className="flex gap-2"> <Input placeholder="الرقم" value={form.tag} onChange={e => setForm({...form, tag: e.target.value})} /> <Input placeholder="الاسم" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /> </div>
-          <div className="flex gap-2 mb-2"> <input type="date" className="flex-1 p-3 bg-gray-50 rounded-xl" value={form.birthDate} onChange={e => setForm({...form, birthDate: e.target.value})} /> </div>
-          <Input placeholder="تاريخ آخر تلقيح" type="date" label="التلقيح (اختياري)" value={form.inseminationDate} onChange={e => setForm({...form, inseminationDate: e.target.value})} />
-          <Button onClick={handleSubmit} className="w-full">{isEditing ? 'حفظ' : 'إضافة'}</Button>
+        {/* رسم بياني للإنتاج */}
+        <Card>
+            <div className="flex justify-between items-center">
+                <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2"><BarChart3 size={16} className="text-blue-500"/> إنتاج آخر 7 أيام (رطل)</h3>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">المجموع: {totalMilk}</span>
+            </div>
+            <SimpleBarChart data={chartData} labelKey="date" valueKey="amount" color="bg-blue-500" />
         </Card>
 
-        <div className="space-y-2">
-          {cows.map(cow => {
-             const { isUnsafe, daysLeft } = checkWithdrawal(cow.id);
-             return (
-            <div key={cow.id} className={`bg-white p-4 rounded-xl shadow-sm border relative ${isUnsafe ? 'border-red-500 bg-red-50' : 'border-gray-100'}`}>
-              <div className="flex justify-between items-start">
-                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${cow.status === 'milking' ? 'bg-emerald-500' : 'bg-gray-400'}`}>{cow.tag}</div>
+        {/* تحليل المصروفات والتناسل */}
+        <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4">
+                <h3 className="font-bold text-gray-700 text-xs mb-3 flex items-center gap-1"><PieChart size={14}/> توزيع المصاريف</h3>
+                <div className="space-y-3">
                     <div>
-                      <p className="font-bold text-gray-800">#{cow.tag} {cow.name}</p>
-                      {isUnsafe && <p className="text-xs font-bold text-red-600 flex items-center gap-1"><AlertTriangle size={12}/> حليب غير صالح ({daysLeft} يوم)</p>}
+                        <div className="flex justify-between text-[10px] text-gray-500 mb-1"><span>علف</span><span>{Math.round((totalFeedCost/totalExpenses)*100 || 0)}%</span></div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${(totalFeedCost/totalExpenses)*100}%`}} className="h-full bg-amber-500"></div></div>
                     </div>
-                 </div>
-                 <div className="flex gap-2">
-                    <button onClick={() => openHealth(cow)} className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Stethoscope size={16}/></button>
-                    <button onClick={() => handleEdit(cow)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={16}/></button>
-                    <button onClick={() => handleDelete(`البقرة ${cow.tag}`, () => setCows(cows.filter(c => c.id !== cow.id)))} className="p-2 bg-rose-50 text-rose-600 rounded-lg"><Trash2 size={16}/></button>
-                 </div>
-              </div>
-            </div>
-          )})}
+                    <div>
+                        <div className="flex justify-between text-[10px] text-gray-500 mb-1"><span>علاج</span><span>{Math.round((totalHealthCost/totalExpenses)*100 || 0)}%</span></div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${(totalHealthCost/totalExpenses)*100}%`}} className="h-full bg-rose-500"></div></div>
+                    </div>
+                </div>
+            </Card>
+
+            <Card className="p-4 flex flex-col justify-center items-center text-center">
+                <h3 className="font-bold text-gray-700 text-xs mb-2 flex items-center gap-1"><Heart size={14} className="text-purple-500"/> حالة القطيع</h3>
+                <div className="relative w-20 h-20 flex items-center justify-center rounded-full border-4 border-purple-100">
+                     <span className="text-xl font-bold text-purple-600">{pregnantCount}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 font-bold">{pregnantCount} عشار من أصل {totalCows}</p>
+            </Card>
         </div>
 
-        {/* Health Modal */}
-        <Modal isOpen={showHealthModal} onClose={() => setShowHealthModal(false)} title={`السجل الصحي - بقرة ${selectedCowForHealth?.tag}`}>
-            <div className="space-y-4">
-                <div className="bg-gray-50 p-3 rounded-xl space-y-2">
-                    <div className="flex gap-2">
-                        <select className="p-2 rounded-lg border flex-1" value={newHealthRecord.type} onChange={e => setNewHealthRecord({...newHealthRecord, type: e.target.value})}>
-                            <option value="treatment">علاج / دواء</option>
-                            <option value="vaccine">تطعيم</option>
-                        </select>
-                        <input type="date" className="p-2 rounded-lg border" value={newHealthRecord.date} onChange={e => setNewHealthRecord({...newHealthRecord, date: e.target.value})} />
-                    </div>
-                    <Input placeholder="اسم المرض / الدواء" value={newHealthRecord.description} onChange={e => setNewHealthRecord({...newHealthRecord, description: e.target.value})} />
-                    <div className="flex gap-2">
-                        <Input placeholder="التكلفة" type="number" value={newHealthRecord.cost} onChange={e => setNewHealthRecord({...newHealthRecord, cost: e.target.value})} />
-                        <div className="flex-1">
-                             <Input placeholder="فترة السحب (أيام)" type="number" value={newHealthRecord.withdrawalDays} onChange={e => setNewHealthRecord({...newHealthRecord, withdrawalDays: e.target.value})} />
-                        </div>
-                    </div>
-                    <Button onClick={addHealthRecord} className="w-full py-2 bg-purple-600 hover:bg-purple-700">تسجيل</Button>
-                </div>
-
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                    <h4 className="font-bold text-xs text-gray-500">السجل السابق</h4>
-                    {healthRecords.filter(r => r.cowId === selectedCowForHealth?.id).map(r => (
-                        <div key={r.id} className="text-sm p-2 border rounded-lg bg-white">
-                            <div className="flex justify-between font-bold">
-                                <span className={r.type === 'vaccine' ? 'text-green-600' : 'text-blue-600'}>{r.description}</span>
-                                <span>{r.cost} ج.س</span>
-                            </div>
-                            <p className="text-xs text-gray-400">{formatDate(r.date)} {Number(r.withdrawalDays) > 0 && <span className="text-red-500">• سحب {r.withdrawalDays} يوم</span>}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </Modal>
+        {/* أزرار الإجراءات */}
+        <div className="flex gap-2">
+            <button onClick={() => shareViaWhatsapp(`تقرير المزرعة:\nالأرباح: ${netProfit}\nالإنتاج: ${totalMilk}`)} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2"><Share2 size={16}/> مشاركة التقرير</button>
+            <button onClick={downloadBackup} className="flex-1 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2"><Download size={16}/> نسخ احتياطي</button>
+        </div>
       </div>
     );
   };
 
   const FeedManager = () => {
-    const [view, setView] = useState('stock'); // stock, buy, use
-    const [newFeed, setNewFeed] = useState({ id: null, type: '', quantity: '', unit: 'جوال', price: '', date: new Date().toISOString().split('T')[0] });
+    const [view, setView] = useState('stock'); // stock, buy, use, history
+    const [newFeed, setNewFeed] = useState({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', date: new Date().toISOString().split('T')[0] });
     const [consumption, setConsumption] = useState({ type: '', quantity: '', date: new Date().toISOString().split('T')[0] });
 
     // Stock Calculation
@@ -342,7 +276,7 @@ export default function App() {
     const handleBuy = () => {
         if (!newFeed.type || !newFeed.quantity) return;
         setFeedRecords([...feedRecords, { ...newFeed, id: Date.now(), totalCost: Number(newFeed.price) * Number(newFeed.quantity) }]);
-        setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', date: new Date().toISOString().split('T')[0] });
+        setNewFeed({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', date: new Date().toISOString().split('T')[0] });
         showNotify("تم تسجيل الشراء ✅");
         setView('stock');
     };
@@ -358,10 +292,10 @@ export default function App() {
     return (
         <div className="space-y-4 pb-20">
             {/* Tabs */}
-            <div className="flex bg-gray-200 p-1 rounded-xl">
-                <button onClick={() => setView('stock')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${view === 'stock' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>المخزون</button>
-                <button onClick={() => setView('buy')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${view === 'buy' ? 'bg-white shadow text-green-600' : 'text-gray-500'}`}>شراء</button>
-                <button onClick={() => setView('use')} className={`flex-1 py-2 text-sm font-bold rounded-lg ${view === 'use' ? 'bg-white shadow text-orange-600' : 'text-gray-500'}`}>استهلاك</button>
+            <div className="flex bg-gray-200 p-1 rounded-xl overflow-x-auto">
+                {[{id:'stock', l:'المخزون'}, {id:'buy', l:'شراء'}, {id:'use', l:'استهلاك'}, {id:'history', l:'سجل الشراء'}].map(t => (
+                    <button key={t.id} onClick={() => setView(t.id)} className={`flex-1 py-2 px-1 text-xs font-bold rounded-lg whitespace-nowrap ${view === t.id ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t.l}</button>
+                ))}
             </div>
 
             {view === 'stock' && (
@@ -386,6 +320,7 @@ export default function App() {
                         <Input placeholder="الكمية" type="number" value={newFeed.quantity} onChange={e => setNewFeed({...newFeed, quantity: e.target.value})} />
                         <Input placeholder="سعر الوحدة" type="number" value={newFeed.price} onChange={e => setNewFeed({...newFeed, price: e.target.value})} />
                     </div>
+                    <Input placeholder="اسم التاجر (اختياري)" value={newFeed.merchant} onChange={e => setNewFeed({...newFeed, merchant: e.target.value})} />
                     <Button onClick={handleBuy} variant="success" className="w-full">إضافة للمخزون</Button>
                 </Card>
             )}
@@ -404,39 +339,107 @@ export default function App() {
                     <Button onClick={handleConsume} className="w-full bg-orange-600 hover:bg-orange-700">خصم من المخزون</Button>
                 </Card>
             )}
+
+            {view === 'history' && (
+                <div className="space-y-3 animate-slide-up">
+                     <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2 mb-2"><History size={16}/> سجل المشتريات السابق</h3>
+                     {feedRecords.length === 0 && <p className="text-center text-gray-400 py-10">لا توجد سجلات</p>}
+                     {feedRecords.slice().reverse().map(rec => (
+                         <div key={rec.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                             <div>
+                                 <p className="font-bold text-gray-800">{rec.type} <span className="text-xs font-normal text-gray-500">({rec.quantity} {rec.unit})</span></p>
+                                 <p className="text-[10px] text-gray-400">{formatDate(rec.date)} {rec.merchant && `• ${rec.merchant}`}</p>
+                             </div>
+                             <div className="text-left">
+                                 <p className="font-bold text-amber-700">{rec.totalCost.toLocaleString()}</p>
+                                 <button onClick={() => handleDelete('سجل شراء', () => setFeedRecords(feedRecords.filter(r => r.id !== rec.id)))} className="text-red-400 p-1"><Trash2 size={14}/></button>
+                             </div>
+                         </div>
+                     ))}
+                </div>
+            )}
         </div>
     );
   };
   
-  // Milk & Sales logic remains the same...
-  const MilkView = () => {
-    const [record, setRecord] = useState({ id: null, amount: '', session: 'morning', date: new Date().toISOString().split('T')[0] });
+  // Cows, Milk, Sales Logic (Kept concise)
+  const CowsView = () => {
     const [isEditing, setIsEditing] = useState(false);
-    const handleSubmit = () => { if (!record.amount) return; if (isEditing) { setMilkRecords(milkRecords.map(r => r.id === record.id ? record : r)); setIsEditing(false); } else { setMilkRecords([{ ...record, id: Date.now() }, ...milkRecords]); } setRecord({ id: null, amount: '', session: 'morning', date: new Date().toISOString().split('T')[0] }); showNotify("تم الحفظ"); };
-    const handleEdit = (rec) => { setRecord(rec); setIsEditing(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
+    const [showHealthModal, setShowHealthModal] = useState(false);
+    const [selectedCow, setSelectedCow] = useState(null);
+    const [healthForm, setHealthForm] = useState({ type: 'treatment', description: '', cost: '', withdrawalDays: 0, date: new Date().toISOString().split('T')[0] });
+
+    const saveCow = () => { if (!form.tag) return showNotify("رقم البقرة مطلوب!"); if(isEditing) setCows(cows.map(c=>c.id===form.id?form:c)); else setCows([...cows, {...form, id:Date.now()}]); setIsEditing(false); setForm({id:null, name:'', tag:'', status:'milking', birthDate:'', calvings:0, inseminationDate:''}); };
+    const saveHealth = () => { if(!healthForm.description) return; setHealthRecords([...healthRecords, {...healthForm, id:Date.now(), cowId:selectedCow.id}]); setHealthForm({ type: 'treatment', description: '', cost: '', withdrawalDays: 0, date: new Date().toISOString().split('T')[0] }); showNotify("تم حفظ السجل الطبي"); };
+    
     return (
       <div className="space-y-4 pb-20">
-         <Card className="border-t-4 border-t-indigo-500">
-           <div className="flex gap-2 mb-3"> <input type="date" value={record.date} onChange={e => setRecord({...record, date: e.target.value})} className="bg-gray-100 rounded-xl px-3 py-2 text-sm font-bold flex-1"/> <div className="flex bg-gray-100 p-1 rounded-xl flex-1"> <button onClick={() => setRecord({...record, session: 'morning'})} className={`flex-1 rounded-lg text-xs font-bold ${record.session === 'morning' ? 'bg-white shadow text-amber-600' : 'text-gray-400'}`}>صباح</button> <button onClick={() => setRecord({...record, session: 'evening'})} className={`flex-1 rounded-lg text-xs font-bold ${record.session === 'evening' ? 'bg-white shadow text-indigo-900' : 'text-gray-400'}`}>مساء</button> </div> </div>
-           <div className="relative mb-4"> <input type="number" placeholder="0" className="w-full text-center text-4xl font-bold text-indigo-900 bg-transparent outline-none" value={record.amount} onChange={e => setRecord({...record, amount: e.target.value})} /> <span className="block text-center text-gray-400 text-xs font-bold mt-1">الكمية (رطل)</span> </div>
-          <Button onClick={handleSubmit} className="w-full bg-indigo-600">{isEditing ? 'تحديث' : 'تسجيل'}</Button>
-        </Card>
-        <div className="space-y-2"> {milkRecords.slice(0, 10).map(rec => ( <div key={rec.id} className="bg-white px-4 py-3 rounded-xl shadow-sm flex justify-between items-center"> <div className="flex items-center gap-3"> <div className={`p-2 rounded-full ${rec.session === 'morning' ? 'bg-amber-50 text-amber-500' : 'bg-indigo-50 text-indigo-500'}`}> <Milk size={18} /> </div> <div> <p className="font-bold text-gray-800 text-lg">{rec.amount} رطل</p> <p className="text-[10px] text-gray-400">{formatDate(rec.date)} • {rec.session === 'morning' ? 'صباح' : 'مساء'}</p> </div> </div> <div className="flex gap-2"> <button onClick={() => handleEdit(rec)} className="text-blue-400"><Edit2 size={16}/></button> <button onClick={() => handleDelete('سجل حلب', () => setMilkRecords(milkRecords.filter(r => r.id !== rec.id)))} className="text-red-400"><Trash2 size={16}/></button> </div> </div> ))} </div>
+         <Card className={isEditing ? "border-blue-400 border-2" : ""}>
+            <div className="flex gap-2 mb-2"><Input placeholder="الرقم" value={form.tag} onChange={e=>setForm({...form, tag:e.target.value})}/><Input placeholder="الاسم" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div>
+            <Input type="date" label="تاريخ آخر تلقيح (للحساب التلقائي)" value={form.inseminationDate} onChange={e=>setForm({...form, inseminationDate:e.target.value})}/>
+            <Button onClick={saveCow} className="w-full">{isEditing ? 'تحديث' : 'إضافة بقرة'}</Button>
+         </Card>
+         <div className="space-y-2">{cows.map(cow => {
+             const isPregnant = !!cow.inseminationDate;
+             return (
+             <div key={cow.id} className="bg-white p-4 rounded-xl shadow-sm border relative flex justify-between">
+                 <div>
+                     <p className="font-bold">#{cow.tag} {cow.name} {isPregnant && <span className="text-[10px] bg-purple-100 text-purple-700 px-1 rounded">عشار</span>}</p>
+                     <p className="text-xs text-gray-400">{cow.status === 'milking' ? 'حلابة' : 'جافة'} • {isPregnant ? `ولادة: ${formatDate(addDays(cow.inseminationDate, 283))}` : 'غير ملقحة'}</p>
+                 </div>
+                 <div className="flex gap-2">
+                     <button onClick={()=>{setSelectedCow(cow); setShowHealthModal(true)}} className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Stethoscope size={16}/></button>
+                     <button onClick={()=>{setForm(cow); setIsEditing(true); window.scrollTo({top:0, behavior:'smooth'})}} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={16}/></button>
+                     <button onClick={()=>handleDelete('البقرة', ()=>setCows(cows.filter(c=>c.id!==cow.id)))} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button>
+                 </div>
+             </div>
+         )})}</div>
+         <Modal isOpen={showHealthModal} onClose={()=>setShowHealthModal(false)} title={`السجل الطبي #${selectedCow?.tag}`}>
+             <div className="space-y-3">
+                 <div className="bg-gray-50 p-3 rounded-xl space-y-2">
+                     <select className="w-full p-2 rounded border" value={healthForm.type} onChange={e=>setHealthForm({...healthForm, type:e.target.value})}><option value="treatment">علاج</option><option value="vaccine">تطعيم</option></select>
+                     <Input placeholder="وصف العلاج" value={healthForm.description} onChange={e=>setHealthForm({...healthForm, description:e.target.value})}/>
+                     <div className="flex gap-2"><Input placeholder="التكلفة" type="number" value={healthForm.cost} onChange={e=>setHealthForm({...healthForm, cost:e.target.value})}/><Input placeholder="فترة السحب (أيام)" type="number" value={healthForm.withdrawalDays} onChange={e=>setHealthForm({...healthForm, withdrawalDays:e.target.value})}/></div>
+                     <Button onClick={saveHealth} className="w-full">حفظ</Button>
+                 </div>
+                 <div className="max-h-40 overflow-y-auto space-y-2">
+                     {healthRecords.filter(h=>h.cowId===selectedCow?.id).map(h=>(<div key={h.id} className="text-xs bg-white border p-2 rounded flex justify-between"><span>{h.description}</span><span className="font-bold">{h.cost} ج.س</span></div>))}
+                 </div>
+             </div>
+         </Modal>
+      </div>
+    );
+  };
+
+  const MilkView = () => {
+    const [record, setRecord] = useState({ id: null, amount: '', session: 'morning', date: new Date().toISOString().split('T')[0] });
+    const save = () => { if(!record.amount) return; setMilkRecords([{...record, id:Date.now()}, ...milkRecords]); setRecord({...record, amount:''}); showNotify("تم الحفظ"); };
+    return (
+      <div className="space-y-4 pb-20">
+         <Card className="border-t-4 border-indigo-500">
+             <div className="flex gap-2 mb-2"><input type="date" className="bg-gray-100 rounded-lg p-2 flex-1 font-bold text-sm" value={record.date} onChange={e=>setRecord({...record, date:e.target.value})}/>
+             <div className="flex bg-gray-100 rounded-lg p-1 flex-1"><button onClick={()=>setRecord({...record, session:'morning'})} className={`flex-1 rounded text-xs font-bold ${record.session==='morning'?'bg-white shadow text-amber-600':'text-gray-400'}`}>صباح</button><button onClick={()=>setRecord({...record, session:'evening'})} className={`flex-1 rounded text-xs font-bold ${record.session==='evening'?'bg-white shadow text-indigo-900':'text-gray-400'}`}>مساء</button></div></div>
+             <input type="number" placeholder="0" className="w-full text-center text-4xl font-bold text-indigo-900 bg-transparent outline-none" value={record.amount} onChange={e=>setRecord({...record, amount:e.target.value})}/><span className="block text-center text-gray-400 text-xs mt-1 font-bold">رطل</span>
+             <Button onClick={save} className="w-full mt-3 bg-indigo-600">تسجيل</Button>
+         </Card>
+         <div className="space-y-2">{milkRecords.slice(0,10).map(r=>(<div key={r.id} className="bg-white p-3 rounded-xl shadow-sm flex justify-between items-center"><span className="font-bold text-indigo-900">{r.amount} رطل</span><span className="text-xs text-gray-400">{formatDate(r.date)} • {r.session==='morning'?'☀️':'🌙'}</span><button onClick={()=>handleDelete('سجل', ()=>setMilkRecords(milkRecords.filter(x=>x.id!==r.id)))} className="text-red-400"><Trash2 size={14}/></button></div>))}</div>
       </div>
     );
   };
 
   const SalesManager = () => {
-    const [view, setView] = useState('list'); 
-    const [newSale, setNewSale] = useState({ id: null, customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] });
-    const handleSaveSale = () => { if (!newSale.customerId || !newSale.amount) return showNotify("بيانات ناقصة!"); const total = Number(newSale.amount) * Number(newSale.price); const paid = newSale.paid === '' ? total : Number(newSale.paid); const saleData = { ...newSale, total, paid, debt: total - paid }; if (newSale.id) { setSales(sales.map(s => s.id === newSale.id ? saleData : s)); showNotify("تم تحديث البيع"); } else { setSales([{ ...saleData, id: Date.now() }, ...sales]); showNotify("تم البيع بنجاح 💰"); } setNewSale({ id: null, customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] }); setView('list'); };
+    const [newSale, setNewSale] = useState({ customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] });
+    const save = () => { if(!newSale.customerId || !newSale.amount) return; const total = newSale.amount * newSale.price; const paid = newSale.paid===''?total:newSale.paid; setSales([{...newSale, total, paid, debt:total-paid, id:Date.now()}, ...sales]); setNewSale({...newSale, amount:'', paid:''}); showNotify("تم البيع"); };
     return (
       <div className="space-y-4 pb-20">
-        <div className="flex p-1 bg-gray-200 rounded-xl"> <button onClick={() => setView('list')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${view === 'list' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>السجل</button> <button onClick={() => setView('debts')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${view === 'debts' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>الديون</button> </div>
-        {view === 'list' && ( <> <Button onClick={() => {setNewSale({ id: null, customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] }); setView('new')}} className="w-full"><Plus size={18} /> عملية بيع جديدة</Button> 
-            {view === 'new' && <Card className="mt-4 animate-slide-up"> <div className="flex gap-2 mb-3"> <select className="w-full p-3 bg-gray-50 border rounded-xl" value={newSale.customerId} onChange={e => setNewSale({...newSale, customerId: e.target.value})}> <option value="">اختر العميل...</option> {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)} </select> <button onClick={() => {const n = prompt("اسم العميل:"); if(n) setCustomers([...customers, {id:Date.now(), name:n}])}} className="bg-blue-100 p-3 rounded-xl"><Plus/></button> </div> <Input placeholder="الكمية" type="number" value={newSale.amount} onChange={e => setNewSale({...newSale, amount: e.target.value})} /> <Input placeholder="السعر" type="number" value={newSale.price} onChange={e => setNewSale({...newSale, price: e.target.value})} /> <Input placeholder="المدفوع" type="number" value={newSale.paid} onChange={e => setNewSale({...newSale, paid: e.target.value})} /> <Button onClick={handleSaveSale} className="w-full">حفظ</Button> </Card>}
-            <div className="space-y-3 mt-4"> {sales.slice(0, 10).map(sale => ( <div key={sale.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between"> <div> <p className="font-bold text-gray-800">{customers.find(c => c.id == sale.customerId)?.name}</p> <p className="text-xs text-gray-400">{formatDate(sale.date)} • {sale.amount} رطل</p> </div> <div className="text-left"> <p className="font-bold text-blue-900">{sale.total.toLocaleString()}</p> {sale.debt > 0 && <span className="text-xs bg-red-100 text-red-600 px-1 rounded">باقي: {sale.debt}</span>} </div> </div> ))} </div> </> )}
-        {view === 'debts' && <Card> {customers.map(c => { const debt = sales.filter(s => s.customerId == c.id).reduce((sum, s) => sum + s.debt, 0); return debt > 0 ? <div key={c.id} className="flex justify-between py-3 border-b"> <span>{c.name}</span> <span className="font-bold text-red-600">{debt.toLocaleString()}</span> </div> : null })} </Card>}
+         <Card>
+             <div className="flex gap-2 mb-2"><select className="flex-1 p-3 bg-gray-50 rounded-xl" value={newSale.customerId} onChange={e=>setNewSale({...newSale, customerId:e.target.value})}><option value="">اختر عميل...</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button onClick={()=>{const n=prompt("اسم العميل"); if(n) setCustomers([...customers, {id:Date.now(), name:n}])}} className="bg-blue-100 p-3 rounded-xl"><Plus/></button></div>
+             <div className="flex gap-2"><Input placeholder="الكمية" type="number" value={newSale.amount} onChange={e=>setNewSale({...newSale, amount:e.target.value})}/><Input placeholder="السعر" type="number" value={newSale.price} onChange={e=>setNewSale({...newSale, price:e.target.value})}/></div>
+             <Input placeholder="المدفوع (اتركه فارغاً إذا دفع بالكامل)" type="number" value={newSale.paid} onChange={e=>setNewSale({...newSale, paid:e.target.value})}/>
+             <Button onClick={save} className="w-full">إتمام البيع</Button>
+         </Card>
+         <div className="space-y-2">{sales.slice(0,10).map(s=>(<div key={s.id} className="bg-white p-3 rounded-xl shadow-sm flex justify-between"><div><span className="font-bold">{customers.find(c=>c.id==s.customerId)?.name}</span><span className="text-xs block text-gray-400">{s.amount} رطل • {formatDate(s.date)}</span></div><div className="text-left"><span className="block font-bold text-blue-900">{s.total}</span>{s.debt>0 && <span className="text-xs text-red-500 bg-red-50 px-1 rounded">باقي: {s.debt}</span>}</div></div>))}</div>
       </div>
     );
   };
