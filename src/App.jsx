@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Milk, DollarSign, Users, Activity, Trash2, Plus, ChevronLeft, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, MapPin, Calendar, Heart, AlertCircle, Stethoscope, Package, MinusCircle, AlertTriangle, Download, History, BarChart3, PieChart } from 'lucide-react';
+import { Milk, DollarSign, Users, Activity, Trash2, Plus, Edit2, Share2, X, Wheat, TrendingUp, TrendingDown, Calendar, Heart, AlertTriangle, Download, History, BarChart3, PieChart, BellRing, Phone } from 'lucide-react';
 
-// --- أدوات مساعدة (Helpers) ---
-const calculateAge = (dateString) => {
-  if (!dateString) return "غير محدد";
-  const today = new Date();
-  const birthDate = new Date(dateString);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-  return age + " سنة";
-};
-
+// --- أدوات مساعدة ---
 const formatDate = (dateString) => {
   if (!dateString) return "";
   return new Date(dateString).toLocaleDateString('ar-EG');
@@ -32,7 +22,7 @@ const getDaysDifference = (dateString) => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 };
 
-// --- مكونات الواجهة والرسوم البيانية (UI & Charts) ---
+// --- المكونات ---
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -61,7 +51,6 @@ const Button = ({ children, onClick, variant = 'primary', className = "" }) => {
     success: "bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700",
     danger: "bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100",
     ghost: "bg-gray-50 text-gray-600 hover:bg-gray-100",
-    warning: "bg-amber-500 text-white hover:bg-amber-600",
   };
   return (
     <button onClick={onClick} className={`px-4 py-3 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}>
@@ -77,39 +66,55 @@ const Input = ({ label, ...props }) => (
   </div>
 );
 
-// مكون رسم بياني بسيط (CSS Bar Chart)
-const SimpleBarChart = ({ data, labelKey, valueKey, color = "bg-blue-500" }) => {
-    if(!data || data.length === 0) return <p className="text-center text-gray-400 text-xs py-4">لا توجد بيانات للرسم</p>;
-    const maxVal = Math.max(...data.map(d => Number(d[valueKey])));
+// رسم بياني محسن (يضمن ظهور آخر 7 أيام)
+const ProductionChart = ({ milkRecords }) => {
+    // 1. إنشاء مصفوفة بآخر 7 أيام
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(d.toISOString().split('T')[0]);
+    }
+
+    // 2. دمج البيانات
+    const data = last7Days.map(date => {
+        const amount = milkRecords
+            .filter(r => r.date === date)
+            .reduce((sum, r) => sum + Number(r.amount), 0);
+        return { date, amount };
+    });
+
+    const maxVal = Math.max(...data.map(d => d.amount)) || 100; // تجنب القسمة على صفر
+
     return (
-        <div className="flex items-end gap-2 h-32 mt-4 pb-2 border-b border-gray-100">
-            {data.slice(-7).map((item, idx) => (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="relative w-full flex justify-end flex-col h-full">
+        <div className="flex items-end gap-2 h-40 mt-6 pb-2 border-b border-gray-200 px-2">
+            {data.map((item, idx) => (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                    <div className="relative w-full flex justify-end flex-col h-full items-center">
+                         {/* القيمة تظهر عند التحويم أو إذا كانت العمود كبيراً */}
+                         <span className="mb-1 text-[10px] font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-5">{item.amount}</span>
                         <div 
-                            style={{ height: `${(Number(item[valueKey]) / maxVal) * 100}%` }} 
-                            className={`w-full ${color} rounded-t-md opacity-80 group-hover:opacity-100 transition-all relative`}
-                        >
-                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-gray-800 text-white px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                {item[valueKey]}
-                            </span>
-                        </div>
+                            style={{ height: `${(item.amount / maxVal) * 100}%` }} 
+                            className={`w-full max-w-[30px] rounded-t-md transition-all duration-500 ${item.amount > 0 ? 'bg-blue-500 group-hover:bg-blue-600' : 'bg-gray-100 h-[2px]'}`}
+                        ></div>
                     </div>
-                    <span className="text-[9px] text-gray-400 font-bold rotate-0 truncate w-full text-center">{item[labelKey]}</span>
+                    <span className="text-[9px] text-gray-500 font-bold rotate-0 truncate w-full text-center">
+                        {new Date(item.date).toLocaleDateString('ar-EG', { weekday: 'short' })}
+                    </span>
                 </div>
             ))}
         </div>
     );
 };
 
-// --- التطبيق الرئيسي ---
+// --- التطبيق ---
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [notification, setNotification] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', onConfirm: () => {} });
 
-  // Data States
+  // إدارة البيانات
   const [cows, setCows] = useState(() => JSON.parse(localStorage.getItem('cows')) || []);
   const [milkRecords, setMilkRecords] = useState(() => JSON.parse(localStorage.getItem('milkRecords')) || []);
   const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('sales')) || []);
@@ -132,77 +137,67 @@ export default function App() {
   const handleDelete = (title, action) => { setConfirmDialog({ isOpen: true, title: `هل أنت متأكد من حذف ${title}؟`, onConfirm: () => { action(); setConfirmDialog({ ...confirmDialog, isOpen: false }); showNotify("تم الحذف بنجاح 🗑️"); } }); };
   const shareViaWhatsapp = (text) => { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); };
 
-  // وظيفة النسخ الاحتياطي
   const downloadBackup = () => {
     const data = { cows, milkRecords, sales, customers, feedRecords, feedConsumption, healthRecords };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `farm_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-    showNotify("تم تحميل ملف النسخة الاحتياطية 📥");
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = `farm_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    showNotify("تم تحميل النسخة الاحتياطية 📥");
   };
 
-  // --- Views ---
+  // --- الشاشات ---
 
   const Dashboard = () => {
-    // 1. Financials
     const totalMilk = milkRecords.reduce((sum, r) => sum + Number(r.amount), 0);
     const totalSales = sales.reduce((sum, s) => sum + Number(s.total), 0);
     const totalFeedCost = feedRecords.reduce((sum, f) => sum + Number(f.totalCost), 0);
     const totalHealthCost = healthRecords.reduce((sum, h) => sum + Number(h.cost || 0), 0);
     const totalExpenses = totalFeedCost + totalHealthCost;
     const netProfit = totalSales - totalExpenses;
-    
-    // 2. Production Chart Data (Last 7 entries grouped by date)
-    const milkByDate = milkRecords.reduce((acc, curr) => {
-        acc[curr.date] = (acc[curr.date] || 0) + Number(curr.amount);
-        return acc;
-    }, {});
-    const chartData = Object.keys(milkByDate).sort().slice(-7).map(date => ({ date: date.slice(5), amount: milkByDate[date] }));
-
-    // 3. Reproduction Stats
     const pregnantCount = cows.filter(c => c.inseminationDate).length;
-    const totalCows = cows.length;
 
-    // 4. Alerts
+    // تنبيهات
     const getAlerts = () => {
-      const alerts = [];
+      const arr = [];
       cows.forEach(cow => {
         if (cow.inseminationDate) {
            const daysToBirth = getDaysDifference(addDays(cow.inseminationDate, 283));
-           if (daysToBirth >= 0 && daysToBirth <= 14) alerts.push({ type: 'birth', msg: `ولادة قريبة: بقرة #${cow.tag}`, days: daysToBirth });
+           if (daysToBirth >= 0 && daysToBirth <= 14) arr.push({ msg: `ولادة وشيكة: بقرة #${cow.tag}`, val: `${daysToBirth} يوم` });
         }
       });
-      // Stock Alerts
+      // فحص المخزون
       const stock = {};
       feedRecords.forEach(r => stock[r.type] = (stock[r.type] || 0) + Number(r.quantity));
       feedConsumption.forEach(r => stock[r.type] = (stock[r.type] || 0) - Number(r.quantity));
-      Object.entries(stock).forEach(([type, qty]) => { if (qty <= 5) alerts.push({ type: 'stock', msg: `مخزون منخفض: ${type}`, qty }); });
-      return alerts;
+      Object.entries(stock).forEach(([type, qty]) => { if (qty <= 5) arr.push({ msg: `نفاد مخزون: ${type}`, val: `${qty} متبقي` }); });
+      return arr;
     };
     const alerts = getAlerts();
 
+    const generateFullReport = () => {
+        const text = `📊 *تقرير المزرعة الشامل*
+📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}
+
+💵 *الملخص المالي:*
+• المبيعات: ${totalSales.toLocaleString()} ج.س
+• المصاريف (علف وعلاج): ${totalExpenses.toLocaleString()} ج.س
+• *صافي الربح: ${netProfit.toLocaleString()} ج.س*
+
+🥛 *الإنتاج:*
+• إجمالي الحليب: ${totalMilk} رطل
+• عدد القطيع: ${cows.length} رأس (${pregnantCount} عشار)
+
+⚠️ *تنبيهات:*
+${alerts.map(a => `- ${a.msg} (${a.val})`).join('\n') || 'لا توجد تنبيهات عاجلة'}
+
+_تم الإنشاء عبر تطبيق مزرعتي_`;
+        shareViaWhatsapp(text);
+    };
+
     return (
       <div className="space-y-4 pb-20 animate-fade-in">
-        {/* التنبيهات */}
-        {alerts.length > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-             <h3 className="text-orange-800 font-bold text-sm mb-2 flex items-center gap-1"><AlertTriangle size={16}/> إجراءات مطلوبة</h3>
-             <div className="space-y-1">
-                {alerts.map((alert, idx) => (
-                    <div key={idx} className="flex justify-between text-xs bg-white p-2 rounded shadow-sm">
-                        <span className="font-bold text-gray-700">{alert.msg}</span>
-                        <span className="text-orange-600 font-bold">{alert.days ? `بعد ${alert.days} يوم` : `متبقي ${alert.qty}`}</span>
-                    </div>
-                ))}
-             </div>
-          </div>
-        )}
-
-        {/* صافي الربح */}
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
            <div className="flex justify-between items-center mb-4">
               <span className="text-gray-300 text-sm font-bold">صافي الأرباح</span>
@@ -211,61 +206,160 @@ export default function App() {
            <p className={`text-4xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
              {netProfit.toLocaleString()} <span className="text-sm text-white opacity-60 font-normal">ج.س</span>
            </p>
-           <div className="mt-4 flex gap-2 text-xs opacity-80">
-                <span className="flex items-center gap-1"><DollarSign size={12}/> مبيعات: {totalSales.toLocaleString()}</span>
-                <span className="text-rose-300 flex items-center gap-1"><MinusCircle size={12}/> مصاريف: {totalExpenses.toLocaleString()}</span>
+           <div className="mt-4 flex gap-4 text-xs opacity-80 border-t border-gray-700 pt-3">
+                <span className="flex items-center gap-1"><DollarSign size={12} className="text-green-400"/> دخل: {totalSales.toLocaleString()}</span>
+                <span className="text-rose-300 flex items-center gap-1"><Wheat size={12}/> مصاريف: {totalExpenses.toLocaleString()}</span>
            </div>
         </div>
 
-        {/* رسم بياني للإنتاج */}
+        {/* الرسم البياني الجديد */}
         <Card>
-            <div className="flex justify-between items-center">
-                <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2"><BarChart3 size={16} className="text-blue-500"/> إنتاج آخر 7 أيام (رطل)</h3>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">المجموع: {totalMilk}</span>
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2"><BarChart3 size={16} className="text-blue-500"/> إنتاج آخر 7 أيام</h3>
             </div>
-            <SimpleBarChart data={chartData} labelKey="date" valueKey="amount" color="bg-blue-500" />
+            <ProductionChart milkRecords={milkRecords} />
         </Card>
 
-        {/* تحليل المصروفات والتناسل */}
-        <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4">
-                <h3 className="font-bold text-gray-700 text-xs mb-3 flex items-center gap-1"><PieChart size={14}/> توزيع المصاريف</h3>
-                <div className="space-y-3">
-                    <div>
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-1"><span>علف</span><span>{Math.round((totalFeedCost/totalExpenses)*100 || 0)}%</span></div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${(totalFeedCost/totalExpenses)*100}%`}} className="h-full bg-amber-500"></div></div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-1"><span>علاج</span><span>{Math.round((totalHealthCost/totalExpenses)*100 || 0)}%</span></div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${(totalHealthCost/totalExpenses)*100}%`}} className="h-full bg-rose-500"></div></div>
-                    </div>
-                </div>
-            </Card>
+        {alerts.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+             <h3 className="text-amber-800 font-bold text-sm mb-2 flex items-center gap-1"><AlertTriangle size={16}/> تنبيهات</h3>
+             {alerts.map((a, i) => <div key={i} className="flex justify-between text-xs bg-white p-2 rounded mb-1 last:mb-0"><span className="font-bold">{a.msg}</span><span className="text-red-500 font-bold">{a.val}</span></div>)}
+          </div>
+        )}
 
-            <Card className="p-4 flex flex-col justify-center items-center text-center">
-                <h3 className="font-bold text-gray-700 text-xs mb-2 flex items-center gap-1"><Heart size={14} className="text-purple-500"/> حالة القطيع</h3>
-                <div className="relative w-20 h-20 flex items-center justify-center rounded-full border-4 border-purple-100">
-                     <span className="text-xl font-bold text-purple-600">{pregnantCount}</span>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-2 font-bold">{pregnantCount} عشار من أصل {totalCows}</p>
-            </Card>
-        </div>
-
-        {/* أزرار الإجراءات */}
         <div className="flex gap-2">
-            <button onClick={() => shareViaWhatsapp(`تقرير المزرعة:\nالأرباح: ${netProfit}\nالإنتاج: ${totalMilk}`)} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2"><Share2 size={16}/> مشاركة التقرير</button>
-            <button onClick={downloadBackup} className="flex-1 py-3 bg-gray-800 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2"><Download size={16}/> نسخ احتياطي</button>
+            <button onClick={generateFullReport} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-green-200"><Share2 size={16}/> تقرير واتساب شامل</button>
+            <button onClick={downloadBackup} className="flex-1 py-3 bg-gray-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg"><Download size={16}/> نسخ احتياطي</button>
         </div>
       </div>
     );
   };
 
+  const SalesManager = () => {
+    const [view, setView] = useState('list'); 
+    const [newSale, setNewSale] = useState({ customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] });
+    
+    // إصلاح منطق حفظ البيع
+    const saveSale = () => { 
+        if (!newSale.customerId || !newSale.amount) return showNotify("الرجاء إدخال البيانات");
+        
+        const amountNum = Number(newSale.amount);
+        const priceNum = Number(newSale.price);
+        const total = amountNum * priceNum;
+        
+        // إذا كان حقل المدفوع فارغاً، نعتبره دفع كامل المبلغ. إذا كان 0 نعتبره دين كامل.
+        const paidNum = newSale.paid === '' ? total : Number(newSale.paid);
+        const debt = total - paidNum;
+
+        const record = {
+            ...newSale, 
+            id: Date.now(),
+            amount: amountNum,
+            price: priceNum,
+            total: total,
+            paid: paidNum,
+            debt: debt
+        };
+
+        setSales([record, ...sales]); 
+        setNewSale({ ...newSale, amount: '', paid: '' }); // تصفير الحقول المتغيرة فقط
+        showNotify("تم تسجيل العملية وحساب الدين ✅");
+        setView('list');
+    };
+
+    // إرسال تذكير واتساب
+    const sendDebtReminder = (customerName, amount) => {
+        const text = `مرحباً عزيزي *${customerName}*، 
+نود تذكيركم بأن إجمالي المبلغ المتبقي عليكم لمزرعتنا هو: *${amount.toLocaleString()} ج.س*.
+نرجو التكرم بالسداد في أقرب وقت. شكراً.`;
+        shareViaWhatsapp(text);
+    };
+
+    return (
+      <div className="space-y-4 pb-20">
+        <div className="flex p-1 bg-gray-200 rounded-xl"> 
+            <button onClick={() => setView('list')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${view === 'list' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>السجل</button> 
+            <button onClick={() => setView('debts')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${view === 'debts' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>الديون ({sales.reduce((sum, s)=>sum+s.debt,0).toLocaleString()})</button> 
+        </div>
+
+        {view === 'list' && ( 
+            <> 
+            <Button onClick={() => setView('new')} className="w-full"><Plus size={18} /> بيع جديد</Button> 
+            {view === 'new' && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                 <Card className="w-full max-w-sm animate-scale-up relative">
+                    <button onClick={()=>setView('list')} className="absolute left-4 top-4 p-1 bg-gray-100 rounded-full"><X size={20}/></button>
+                    <h3 className="font-bold mb-4 text-lg">عملية بيع جديدة</h3>
+                    <div className="flex gap-2 mb-3"> 
+                        <select className="w-full p-3 bg-gray-50 border rounded-xl" value={newSale.customerId} onChange={e => setNewSale({...newSale, customerId: e.target.value})}> 
+                            <option value="">اختر العميل...</option> 
+                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)} 
+                        </select> 
+                        <button onClick={() => {const n = prompt("اسم العميل الجديد:"); if(n) setCustomers([...customers, {id:Date.now(), name:n}])}} className="bg-blue-100 text-blue-600 p-3 rounded-xl"><Plus/></button> 
+                    </div> 
+                    <div className="flex gap-2">
+                        <Input label="الكمية" type="number" value={newSale.amount} onChange={e => setNewSale({...newSale, amount: e.target.value})} /> 
+                        <Input label="السعر" type="number" value={newSale.price} onChange={e => setNewSale({...newSale, price: e.target.value})} /> 
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded mb-2 text-center text-blue-800 font-bold text-sm">الإجمالي: {(Number(newSale.amount)*Number(newSale.price)).toLocaleString()} ج.س</div>
+                    <Input label="المبلغ المدفوع (اتركه فارغاً إذا سدد بالكامل)" type="number" value={newSale.paid} onChange={e => setNewSale({...newSale, paid: e.target.value})} /> 
+                    <Button onClick={saveSale} className="w-full">حفظ</Button> 
+                 </Card>
+                </div>
+            )}
+            
+            <div className="space-y-3 mt-4"> 
+                {sales.length === 0 && <p className="text-center text-gray-400 py-10">لا توجد مبيعات</p>}
+                {sales.slice(0, 15).map(sale => ( 
+                    <div key={sale.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start"> 
+                        <div> 
+                            <p className="font-bold text-gray-800">{customers.find(c => c.id == sale.customerId)?.name}</p> 
+                            <p className="text-xs text-gray-400 mt-1">{formatDate(sale.date)} • {sale.amount} رطل</p> 
+                        </div> 
+                        <div className="text-left"> 
+                            <p className="font-bold text-blue-900">{sale.total.toLocaleString()}</p> 
+                            {sale.debt > 0 ? 
+                                <span className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded font-bold mt-1 inline-block">عليه: {sale.debt}</span> : 
+                                <span className="text-[10px] bg-green-100 text-green-600 px-2 py-1 rounded font-bold mt-1 inline-block">خالص</span>
+                            } 
+                        </div> 
+                    </div> 
+                ))} 
+            </div> 
+            </> 
+        )}
+
+        {view === 'debts' && (
+           <Card> 
+               <h3 className="font-bold mb-4 border-b pb-2">قائمة المديونيات</h3>
+               {customers.map(c => { 
+                   const debt = sales.filter(s => s.customerId == c.id).reduce((sum, s) => sum + s.debt, 0); 
+                   if (debt <= 0) return null;
+                   return (
+                       <div key={c.id} className="flex justify-between items-center py-3 border-b last:border-0"> 
+                           <div>
+                               <p className="font-bold text-gray-800">{c.name}</p>
+                               <p className="text-sm font-bold text-rose-600">{debt.toLocaleString()} ج.س</p>
+                           </div>
+                           <div className="flex gap-2">
+                               <button onClick={() => window.open(`tel:`)} className="p-2 bg-gray-100 text-gray-600 rounded-lg"><Phone size={18}/></button>
+                               <button onClick={() => sendDebtReminder(c.name, debt)} className="p-2 bg-green-100 text-green-600 rounded-lg flex items-center gap-1 font-bold text-xs"><BellRing size={16}/> تذكير</button>
+                           </div>
+                       </div> 
+                   ) 
+               })} 
+               {customers.every(c => sales.filter(s => s.customerId == c.id).reduce((sum, s) => sum + s.debt, 0) <= 0) && <p className="text-center text-gray-400">لا توجد ديون مستحقة 🎉</p>}
+           </Card>
+        )}
+      </div>
+    );
+  };
+
   const FeedManager = () => {
-    const [view, setView] = useState('stock'); // stock, buy, use, history
+    const [view, setView] = useState('stock'); 
     const [newFeed, setNewFeed] = useState({ id: null, type: '', quantity: '', unit: 'جوال', price: '', merchant: '', date: new Date().toISOString().split('T')[0] });
     const [consumption, setConsumption] = useState({ type: '', quantity: '', date: new Date().toISOString().split('T')[0] });
 
-    // Stock Calculation
     const getStock = () => {
         const stock = {};
         feedRecords.forEach(r => stock[r.type] = (stock[r.type] || 0) + Number(r.quantity));
@@ -291,10 +385,9 @@ export default function App() {
 
     return (
         <div className="space-y-4 pb-20">
-            {/* Tabs */}
             <div className="flex bg-gray-200 p-1 rounded-xl overflow-x-auto">
-                {[{id:'stock', l:'المخزون'}, {id:'buy', l:'شراء'}, {id:'use', l:'استهلاك'}, {id:'history', l:'سجل الشراء'}].map(t => (
-                    <button key={t.id} onClick={() => setView(t.id)} className={`flex-1 py-2 px-1 text-xs font-bold rounded-lg whitespace-nowrap ${view === t.id ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t.l}</button>
+                {[{id:'stock', l:'المخزون'}, {id:'buy', l:'شراء'}, {id:'use', l:'استهلاك'}, {id:'history', l:'السجل'}].map(t => (
+                    <button key={t.id} onClick={() => setView(t.id)} className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg whitespace-nowrap ${view === t.id ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t.l}</button>
                 ))}
             </div>
 
@@ -327,7 +420,7 @@ export default function App() {
 
             {view === 'use' && (
                 <Card className="animate-slide-up">
-                    <h3 className="font-bold mb-3 flex items-center gap-2 text-orange-700"><MinusCircle size={18}/> تسجيل استهلاك يومي</h3>
+                    <h3 className="font-bold mb-3 flex items-center gap-2 text-orange-700"><Users size={18}/> تسجيل استهلاك يومي</h3>
                     <div className="mb-3">
                         <label className="block text-xs font-bold text-gray-400 mb-1">نوع العلف</label>
                         <select className="w-full p-3 bg-gray-50 rounded-xl border" value={consumption.type} onChange={e => setConsumption({...consumption, type: e.target.value})}>
@@ -336,13 +429,12 @@ export default function App() {
                         </select>
                     </div>
                     <Input placeholder="الكمية المستهلكة" type="number" value={consumption.quantity} onChange={e => setConsumption({...consumption, quantity: e.target.value})} />
-                    <Button onClick={handleConsume} className="w-full bg-orange-600 hover:bg-orange-700">خصم من المخزون</Button>
+                    <Button onClick={handleConsume} className="w-full bg-orange-600 hover:bg-orange-700 text-white">خصم من المخزون</Button>
                 </Card>
             )}
 
             {view === 'history' && (
-                <div className="space-y-3 animate-slide-up">
-                     <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2 mb-2"><History size={16}/> سجل المشتريات السابق</h3>
+                 <div className="space-y-3 animate-slide-up">
                      {feedRecords.length === 0 && <p className="text-center text-gray-400 py-10">لا توجد سجلات</p>}
                      {feedRecords.slice().reverse().map(rec => (
                          <div key={rec.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
@@ -362,7 +454,7 @@ export default function App() {
     );
   };
   
-  // Cows, Milk, Sales Logic (Kept concise)
+  // Cows & Milk (مختصرة للحفاظ على الحجم)
   const CowsView = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
@@ -377,7 +469,7 @@ export default function App() {
       <div className="space-y-4 pb-20">
          <Card className={isEditing ? "border-blue-400 border-2" : ""}>
             <div className="flex gap-2 mb-2"><Input placeholder="الرقم" value={form.tag} onChange={e=>setForm({...form, tag:e.target.value})}/><Input placeholder="الاسم" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div>
-            <Input type="date" label="تاريخ آخر تلقيح (للحساب التلقائي)" value={form.inseminationDate} onChange={e=>setForm({...form, inseminationDate:e.target.value})}/>
+            <Input type="date" label="تاريخ آخر تلقيح" value={form.inseminationDate} onChange={e=>setForm({...form, inseminationDate:e.target.value})}/>
             <Button onClick={saveCow} className="w-full">{isEditing ? 'تحديث' : 'إضافة بقرة'}</Button>
          </Card>
          <div className="space-y-2">{cows.map(cow => {
@@ -389,7 +481,7 @@ export default function App() {
                      <p className="text-xs text-gray-400">{cow.status === 'milking' ? 'حلابة' : 'جافة'} • {isPregnant ? `ولادة: ${formatDate(addDays(cow.inseminationDate, 283))}` : 'غير ملقحة'}</p>
                  </div>
                  <div className="flex gap-2">
-                     <button onClick={()=>{setSelectedCow(cow); setShowHealthModal(true)}} className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Stethoscope size={16}/></button>
+                     <button onClick={()=>{setSelectedCow(cow); setShowHealthModal(true)}} className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Heart size={16}/></button>
                      <button onClick={()=>{setForm(cow); setIsEditing(true); window.scrollTo({top:0, behavior:'smooth'})}} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit2 size={16}/></button>
                      <button onClick={()=>handleDelete('البقرة', ()=>setCows(cows.filter(c=>c.id!==cow.id)))} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button>
                  </div>
@@ -399,12 +491,12 @@ export default function App() {
              <div className="space-y-3">
                  <div className="bg-gray-50 p-3 rounded-xl space-y-2">
                      <select className="w-full p-2 rounded border" value={healthForm.type} onChange={e=>setHealthForm({...healthForm, type:e.target.value})}><option value="treatment">علاج</option><option value="vaccine">تطعيم</option></select>
-                     <Input placeholder="وصف العلاج" value={healthForm.description} onChange={e=>setHealthForm({...healthForm, description:e.target.value})}/>
-                     <div className="flex gap-2"><Input placeholder="التكلفة" type="number" value={healthForm.cost} onChange={e=>setHealthForm({...healthForm, cost:e.target.value})}/><Input placeholder="فترة السحب (أيام)" type="number" value={healthForm.withdrawalDays} onChange={e=>setHealthForm({...healthForm, withdrawalDays:e.target.value})}/></div>
+                     <Input placeholder="الوصف" value={healthForm.description} onChange={e=>setHealthForm({...healthForm, description:e.target.value})}/>
+                     <div className="flex gap-2"><Input placeholder="التكلفة" type="number" value={healthForm.cost} onChange={e=>setHealthForm({...healthForm, cost:e.target.value})}/><Input placeholder="سحب (أيام)" type="number" value={healthForm.withdrawalDays} onChange={e=>setHealthForm({...healthForm, withdrawalDays:e.target.value})}/></div>
                      <Button onClick={saveHealth} className="w-full">حفظ</Button>
                  </div>
                  <div className="max-h-40 overflow-y-auto space-y-2">
-                     {healthRecords.filter(h=>h.cowId===selectedCow?.id).map(h=>(<div key={h.id} className="text-xs bg-white border p-2 rounded flex justify-between"><span>{h.description}</span><span className="font-bold">{h.cost} ج.س</span></div>))}
+                     {healthRecords.filter(h=>h.cowId===selectedCow?.id).map(h=>(<div key={h.id} className="text-xs bg-white border p-2 rounded flex justify-between"><span>{h.description}</span><span className="font-bold">{h.cost}</span></div>))}
                  </div>
              </div>
          </Modal>
@@ -424,22 +516,6 @@ export default function App() {
              <Button onClick={save} className="w-full mt-3 bg-indigo-600">تسجيل</Button>
          </Card>
          <div className="space-y-2">{milkRecords.slice(0,10).map(r=>(<div key={r.id} className="bg-white p-3 rounded-xl shadow-sm flex justify-between items-center"><span className="font-bold text-indigo-900">{r.amount} رطل</span><span className="text-xs text-gray-400">{formatDate(r.date)} • {r.session==='morning'?'☀️':'🌙'}</span><button onClick={()=>handleDelete('سجل', ()=>setMilkRecords(milkRecords.filter(x=>x.id!==r.id)))} className="text-red-400"><Trash2 size={14}/></button></div>))}</div>
-      </div>
-    );
-  };
-
-  const SalesManager = () => {
-    const [newSale, setNewSale] = useState({ customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] });
-    const save = () => { if(!newSale.customerId || !newSale.amount) return; const total = newSale.amount * newSale.price; const paid = newSale.paid===''?total:newSale.paid; setSales([{...newSale, total, paid, debt:total-paid, id:Date.now()}, ...sales]); setNewSale({...newSale, amount:'', paid:''}); showNotify("تم البيع"); };
-    return (
-      <div className="space-y-4 pb-20">
-         <Card>
-             <div className="flex gap-2 mb-2"><select className="flex-1 p-3 bg-gray-50 rounded-xl" value={newSale.customerId} onChange={e=>setNewSale({...newSale, customerId:e.target.value})}><option value="">اختر عميل...</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button onClick={()=>{const n=prompt("اسم العميل"); if(n) setCustomers([...customers, {id:Date.now(), name:n}])}} className="bg-blue-100 p-3 rounded-xl"><Plus/></button></div>
-             <div className="flex gap-2"><Input placeholder="الكمية" type="number" value={newSale.amount} onChange={e=>setNewSale({...newSale, amount:e.target.value})}/><Input placeholder="السعر" type="number" value={newSale.price} onChange={e=>setNewSale({...newSale, price:e.target.value})}/></div>
-             <Input placeholder="المدفوع (اتركه فارغاً إذا دفع بالكامل)" type="number" value={newSale.paid} onChange={e=>setNewSale({...newSale, paid:e.target.value})}/>
-             <Button onClick={save} className="w-full">إتمام البيع</Button>
-         </Card>
-         <div className="space-y-2">{sales.slice(0,10).map(s=>(<div key={s.id} className="bg-white p-3 rounded-xl shadow-sm flex justify-between"><div><span className="font-bold">{customers.find(c=>c.id==s.customerId)?.name}</span><span className="text-xs block text-gray-400">{s.amount} رطل • {formatDate(s.date)}</span></div><div className="text-left"><span className="block font-bold text-blue-900">{s.total}</span>{s.debt>0 && <span className="text-xs text-red-500 bg-red-50 px-1 rounded">باقي: {s.debt}</span>}</div></div>))}</div>
       </div>
     );
   };
