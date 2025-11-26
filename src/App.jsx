@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Milk, DollarSign, Users, Activity, Trash2, Plus, Edit2, Share2, Wheat, TrendingUp, TrendingDown, Heart, AlertTriangle, Download, BarChart3, Phone, Stethoscope, BellRing } from 'lucide-react';
-// استدعاء المكونات من الملف الذي أنشأناه
+import { Milk, DollarSign, Users, Activity, Trash2, Plus, Edit2, Share2, Wheat, TrendingUp, TrendingDown, Heart, AlertTriangle, Download, BarChart3, Phone, Stethoscope, BellRing, User, MapPin, Calendar, FileText } from 'lucide-react';
+// تأكد أن ملف UI.jsx موجود في نفس المجلد
 import { Button, Card, Input, Modal, ProductionChart, formatDate, addDays, getDaysDifference } from './UI';
 
 export default function App() {
@@ -8,7 +8,7 @@ export default function App() {
   const [notification, setNotification] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', onConfirm: () => {} });
 
-  // --- تهيئة البيانات (Database) ---
+  // --- تهيئة البيانات ---
   const [cows, setCows] = useState(() => JSON.parse(localStorage.getItem('cows')) || []);
   const [milkRecords, setMilkRecords] = useState(() => JSON.parse(localStorage.getItem('milkRecords')) || []);
   const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('sales')) || []);
@@ -40,14 +40,13 @@ export default function App() {
     document.body.appendChild(a); a.click(); a.remove(); showNotify("تم حفظ النسخة الاحتياطية");
   };
 
-  // --- 1. شاشة لوحة التحكم (Dashboard) ---
+  // --- 1. Dashboard ---
   const Dashboard = () => {
     const totalMilk = milkRecords.reduce((sum, r) => sum + Number(r.amount), 0);
     const totalSales = sales.reduce((sum, s) => sum + Number(s.total), 0);
     const totalExpenses = feedRecords.reduce((sum, f) => sum + Number(f.totalCost), 0) + healthRecords.reduce((sum, h) => sum + Number(h.cost || 0), 0);
     const netProfit = totalSales - totalExpenses;
     
-    // التنبيهات الذكية
     const alerts = [];
     cows.forEach(cow => {
         if(cow.inseminationDate) {
@@ -55,6 +54,7 @@ export default function App() {
             if(daysToBirth >= 0 && daysToBirth <= 14) alerts.push({msg: `ولادة وشيكة: ${cow.tag}`, val: `${daysToBirth} يوم`});
         }
     });
+    // Stock Alerts
     const stock = {}; 
     feedRecords.forEach(r => stock[r.type] = (stock[r.type]||0) + Number(r.quantity));
     feedConsumption.forEach(r => stock[r.type] = (stock[r.type]||0) - Number(r.quantity));
@@ -90,12 +90,10 @@ export default function App() {
     );
   };
 
-  // --- 2. إدارة الأبقار (Cows) - شامل التلقيح والصحة ---
+  // --- 2. Cows Manager ---
   const CowsManager = () => {
     const [view, setView] = useState('list');
     const [form, setForm] = useState({ id: null, name: '', tag: '', status: 'milking', birthDate: '', calvings: 0, inseminationDate: '' });
-    
-    // حالة السجل الطبي
     const [showHealth, setShowHealth] = useState(false);
     const [selectedCow, setSelectedCow] = useState(null);
     const [healthForm, setHealthForm] = useState({ type: 'treatment', description: '', cost: '', withdrawalDays: 0, date: new Date().toISOString().split('T')[0] });
@@ -156,7 +154,6 @@ export default function App() {
             </div>
             </>
         )}
-
         {view === 'form' && (
             <Card>
                 <div className="flex justify-between mb-4"><h3 className="font-bold">بيانات البقرة</h3><button onClick={()=>setView('list')} className="text-red-500 text-xs">إلغاء</button></div>
@@ -164,7 +161,6 @@ export default function App() {
                 <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 mb-3">
                     <label className="text-xs font-bold text-purple-800 mb-1 block">بيانات التناسل</label>
                     <Input type="date" label="تاريخ التلقيح" value={form.inseminationDate} onChange={e=>setForm({...form, inseminationDate:e.target.value})}/>
-                    {form.inseminationDate && <p className="text-[10px] text-purple-600">ولادة متوقعة: {formatDate(addDays(form.inseminationDate, 283))}</p>}
                 </div>
                 <div className="flex gap-2 mb-3">
                    {['milking','dry'].map(s=><button key={s} onClick={()=>setForm({...form, status:s})} className={`flex-1 py-2 text-xs font-bold rounded border ${form.status===s?'bg-blue-600 text-white':'bg-white text-gray-500'}`}>{s==='milking'?'حلابة':'جافة'}</button>)}
@@ -172,12 +168,11 @@ export default function App() {
                 <Button onClick={saveCow} className="w-full">حفظ</Button>
             </Card>
         )}
-
         <Modal isOpen={showHealth} onClose={() => setShowHealth(false)} title={`السجل الطبي #${selectedCow?.tag}`}>
              <div className="space-y-3">
                  <div className="bg-gray-50 p-3 rounded-xl space-y-2">
                      <select className="w-full p-2 rounded border" value={healthForm.type} onChange={e=>setHealthForm({...healthForm, type:e.target.value})}><option value="treatment">علاج</option><option value="vaccine">تطعيم</option></select>
-                     <Input placeholder="اسم الدواء / المرض" value={healthForm.description} onChange={e=>setHealthForm({...healthForm, description:e.target.value})}/>
+                     <Input placeholder="الاسم" value={healthForm.description} onChange={e=>setHealthForm({...healthForm, description:e.target.value})}/>
                      <div className="flex gap-2"><Input placeholder="التكلفة" type="number" value={healthForm.cost} onChange={e=>setHealthForm({...healthForm, cost:e.target.value})}/><Input placeholder="سحب (أيام)" type="number" value={healthForm.withdrawalDays} onChange={e=>setHealthForm({...healthForm, withdrawalDays:e.target.value})}/></div>
                      <Button onClick={saveHealth} className="w-full py-2">تسجيل</Button>
                  </div>
@@ -190,16 +185,14 @@ export default function App() {
     );
   };
 
-  // --- 3. إدارة المبيعات والديون (Sales) ---
+  // --- 3. Sales Manager ---
   const SalesManager = () => {
     const [view, setView] = useState('list');
     const [newSale, setNewSale] = useState({ customerId: '', amount: '', price: '500', paid: '', date: new Date().toISOString().split('T')[0] });
     
     const addCustomer = () => {
-        const name = prompt("اسم العميل:");
-        if (!name) return;
-        const phone = prompt("رقم الهاتف (اختياري):");
-        setCustomers([...customers, { id: Date.now(), name, phone }]);
+        const name = prompt("اسم العميل:"); if (!name) return;
+        const phone = prompt("رقم الهاتف (اختياري):"); setCustomers([...customers, { id: Date.now(), name, phone }]);
     };
 
     const saveSale = () => {
@@ -207,17 +200,13 @@ export default function App() {
         const total = Number(newSale.amount) * Number(newSale.price);
         const paid = newSale.paid === '' ? total : Number(newSale.paid);
         const record = { ...newSale, total, paid, debt: total - paid, id: Date.now() };
-        setSales([record, ...sales]);
-        setNewSale({ ...newSale, amount: '', paid: '' });
-        setView('list'); showNotify("تم البيع");
+        setSales([record, ...sales]); setNewSale({ ...newSale, amount: '', paid: '' }); setView('list'); showNotify("تم البيع");
     };
 
     return (
       <div className="space-y-4 pb-20">
          <div className="flex p-1 bg-gray-200 rounded-xl">
-            <button onClick={() => setView('list')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${view === 'list' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>السجل</button>
-            <button onClick={() => setView('new')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${view === 'new' ? 'bg-white shadow text-green-600' : 'text-gray-500'}`}>بيع جديد</button>
-            <button onClick={() => setView('debts')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${view === 'debts' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>الديون</button>
+            {['list','new','debts'].map(t => <button key={t} onClick={() => setView(t)} className={`flex-1 py-2 text-xs font-bold rounded-lg ${view === t ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t==='list'?'السجل':t==='new'?'بيع':'الديون'}</button>)}
          </div>
 
          {view === 'new' && (
@@ -230,12 +219,9 @@ export default function App() {
                      </select>
                      <button onClick={addCustomer} className="bg-blue-100 text-blue-600 p-3 rounded-xl"><Plus/></button>
                  </div>
-                 <div className="flex gap-2">
-                    <Input label="الكمية" type="number" value={newSale.amount} onChange={e => setNewSale({...newSale, amount: e.target.value})} />
-                    <Input label="السعر" type="number" value={newSale.price} onChange={e => setNewSale({...newSale, price: e.target.value})} />
-                 </div>
+                 <div className="flex gap-2"><Input label="الكمية" type="number" value={newSale.amount} onChange={e => setNewSale({...newSale, amount: e.target.value})} /><Input label="السعر" type="number" value={newSale.price} onChange={e => setNewSale({...newSale, price: e.target.value})} /></div>
                  <div className="text-center font-bold text-blue-800 mb-2">الإجمالي: {(Number(newSale.amount) * Number(newSale.price)).toLocaleString()}</div>
-                 <Input label="المدفوع (اتركه فارغاً للدفع الكامل)" type="number" value={newSale.paid} onChange={e => setNewSale({...newSale, paid: e.target.value})} />
+                 <Input label="المدفوع" type="number" value={newSale.paid} onChange={e => setNewSale({...newSale, paid: e.target.value})} />
                  <Button onClick={saveSale} className="w-full">حفظ</Button>
              </Card>
          )}
@@ -244,14 +230,8 @@ export default function App() {
              <div className="space-y-3">
                  {sales.slice(0, 20).map(sale => (
                      <div key={sale.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                         <div>
-                             <p className="font-bold text-gray-800">{customers.find(c => c.id == sale.customerId)?.name}</p>
-                             <p className="text-xs text-gray-400">{formatDate(sale.date)} • {sale.amount} رطل</p>
-                         </div>
-                         <div className="text-left">
-                             <p className="font-bold text-blue-900">{sale.total.toLocaleString()}</p>
-                             {sale.debt > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">عليه: {sale.debt}</span>}
-                         </div>
+                         <div><p className="font-bold text-gray-800">{customers.find(c => c.id == sale.customerId)?.name}</p><p className="text-xs text-gray-400">{formatDate(sale.date)} • {sale.amount} رطل</p></div>
+                         <div className="text-left"><p className="font-bold text-blue-900">{sale.total.toLocaleString()}</p>{sale.debt > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">عليه: {sale.debt}</span>}</div>
                      </div>
                  ))}
              </div>
@@ -265,10 +245,7 @@ export default function App() {
                      if (debt <= 0) return null;
                      return (
                          <div key={c.id} className="flex justify-between items-center py-3 border-b last:border-0">
-                             <div>
-                                 <p className="font-bold text-gray-800">{c.name}</p>
-                                 <p className="text-sm font-bold text-red-600">{debt.toLocaleString()} ج.س</p>
-                             </div>
+                             <div><p className="font-bold text-gray-800">{c.name}</p><p className="text-sm font-bold text-red-600">{debt.toLocaleString()} ج.س</p></div>
                              <div className="flex gap-2">
                                  {c.phone && <a href={`tel:${c.phone}`} className="p-2 bg-gray-100 text-gray-600 rounded-lg"><Phone size={16}/></a>}
                                  <button onClick={() => shareViaWhatsapp(`مرحباً ${c.name}، المتبقي عليكم: ${debt} ج.س`)} className="p-2 bg-green-100 text-green-600 rounded-lg"><BellRing size={16}/></button>
@@ -282,7 +259,7 @@ export default function App() {
     );
   };
 
-  // --- 4. إدارة الحليب (Milk) ---
+  // --- 4. Milk View ---
   const MilkView = () => {
     const [record, setRecord] = useState({ id: null, amount: '', session: 'morning', date: new Date().toISOString().split('T')[0] });
     const save = () => { if(!record.amount) return; setMilkRecords([{...record, id:Date.now()}, ...milkRecords]); setRecord({...record, amount:''}); showNotify("تم الحفظ"); };
@@ -299,39 +276,132 @@ export default function App() {
     );
   };
 
-  // --- 5. إدارة الأعلاف (Feed) ---
+  // --- 5. Feed Manager (المعدل بالكامل) ---
   const FeedManager = () => {
     const [view, setView] = useState('stock'); 
-    const [newFeed, setNewFeed] = useState({ type: '', quantity: '', unit: 'جوال', price: '' });
-    const [consumption, setConsumption] = useState({ type: '', quantity: '' });
+    const [newFeed, setNewFeed] = useState({ type: 'ردة', quantity: '', unit: 'جوال', price: '', merchantName: '', merchantLoc: '', merchantPhone: '', date: new Date().toISOString().split('T')[0] });
+    const [consumption, setConsumption] = useState({ type: '', quantity: '', date: new Date().toISOString().split('T')[0] });
 
+    const UNITS = ['جوال', 'قنطار', 'طن', 'كيلو جرام', 'قيراط'];
+    const FEED_TYPES = ['ردة', 'مركزات', 'برسيم', 'سيلاج', 'مولاس', 'أملاح', 'ذرة', 'أخرى'];
+
+    // حساب المخزون (تجميع حسب النوع)
     const getStock = () => {
         const stock = {};
-        feedRecords.forEach(r => stock[r.type] = (stock[r.type] || 0) + Number(r.quantity));
+        const units = {}; // لتذكر وحدة كل نوع للعرض
+        feedRecords.forEach(r => {
+             stock[r.type] = (stock[r.type] || 0) + Number(r.quantity);
+             if(!units[r.type]) units[r.type] = r.unit; 
+        });
         feedConsumption.forEach(r => stock[r.type] = (stock[r.type] || 0) - Number(r.quantity));
-        return Object.entries(stock).map(([type, qty]) => ({ type, qty }));
+        return Object.entries(stock).map(([type, qty]) => ({ type, qty, unit: units[type] || 'وحدة' }));
     };
 
     const handleBuy = () => {
-        if (!newFeed.type || !newFeed.quantity) return;
-        setFeedRecords([...feedRecords, { ...newFeed, id: Date.now(), totalCost: Number(newFeed.price) * Number(newFeed.quantity), date: new Date().toISOString().split('T')[0] }]);
-        setNewFeed({ type: '', quantity: '', unit: 'جوال', price: '' }); showNotify("تم الشراء"); setView('stock');
+        if (!newFeed.quantity || !newFeed.price) return showNotify("أكمل البيانات");
+        setFeedRecords([...feedRecords, { ...newFeed, id: Date.now(), totalCost: Number(newFeed.price) * Number(newFeed.quantity) }]);
+        setNewFeed({ ...newFeed, quantity: '', price: '', date: new Date().toISOString().split('T')[0] }); 
+        showNotify("تم الشراء"); setView('stock');
     };
 
     const handleConsume = () => {
         if (!consumption.type || !consumption.quantity) return;
-        setFeedConsumption([...feedConsumption, { ...consumption, id: Date.now(), date: new Date().toISOString().split('T')[0] }]);
-        setConsumption({ type: '', quantity: '' }); showNotify("تم الاستهلاك"); setView('stock');
+        setFeedConsumption([...feedConsumption, { ...consumption, id: Date.now() }]);
+        setConsumption({ type: '', quantity: '', date: new Date().toISOString().split('T')[0] }); 
+        showNotify("تم الاستهلاك"); setView('stock');
     };
 
     return (
         <div className="space-y-4 pb-20">
-            <div className="flex bg-gray-200 p-1 rounded-xl">
-                {['stock','buy','use'].map(t => <button key={t} onClick={() => setView(t)} className={`flex-1 py-2 text-xs font-bold rounded-lg ${view === t ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t==='stock'?'مخزون':t==='buy'?'شراء':'استهلاك'}</button>)}
+            <div className="flex bg-gray-200 p-1 rounded-xl overflow-x-auto">
+                {[{id:'stock', l:'المخزون'}, {id:'buy', l:'شراء'}, {id:'use', l:'استهلاك'}, {id:'report', l:'التقارير'}].map(t => (
+                    <button key={t.id} onClick={() => setView(t.id)} className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg whitespace-nowrap ${view === t.id ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>{t.l}</button>
+                ))}
             </div>
-            {view === 'stock' && <div className="grid grid-cols-2 gap-3">{getStock().map((item, i) => <Card key={i} className="text-center py-4 border-t-4 border-t-amber-500"><h3 className="font-bold">{item.type}</h3><p className="text-2xl font-bold text-blue-600">{item.qty}</p></Card>)}</div>}
-            {view === 'buy' && <Card><Input placeholder="النوع" value={newFeed.type} onChange={e=>setNewFeed({...newFeed, type:e.target.value})}/><div className="flex gap-2"><Input placeholder="الكمية" type="number" value={newFeed.quantity} onChange={e=>setNewFeed({...newFeed, quantity:e.target.value})}/><Input placeholder="السعر" type="number" value={newFeed.price} onChange={e=>setNewFeed({...newFeed, price:e.target.value})}/></div><Button onClick={handleBuy}>إضافة للمخزون</Button></Card>}
-            {view === 'use' && <Card><select className="w-full p-3 mb-3 bg-gray-50 border rounded-xl" value={consumption.type} onChange={e=>setConsumption({...consumption, type:e.target.value})}><option value="">النوع...</option>{getStock().map(s=><option key={s.type} value={s.type}>{s.type}</option>)}</select><Input placeholder="الكمية" type="number" value={consumption.quantity} onChange={e=>setConsumption({...consumption, quantity:e.target.value})}/><Button onClick={handleConsume} variant="warning">خصم</Button></Card>}
+
+            {view === 'stock' && (
+                <div className="grid grid-cols-2 gap-3">
+                    {getStock().map((item, i) => (
+                        <Card key={i} className="text-center py-4 border-t-4 border-t-amber-500">
+                            <Wheat size={24} className="mx-auto text-amber-500 mb-2"/>
+                            <h3 className="font-bold text-gray-800">{item.type}</h3>
+                            <p className="text-2xl font-bold text-blue-600">{item.qty}</p>
+                            <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2 rounded">{item.unit}</span>
+                        </Card>
+                    ))}
+                    {getStock().length === 0 && <p className="col-span-2 text-center text-gray-400 py-10">المخزن فارغ</p>}
+                </div>
+            )}
+
+            {view === 'buy' && (
+                <Card className="animate-slide-up">
+                    <h3 className="font-bold mb-3 flex items-center gap-2 text-green-700"><Plus size={18}/> شراء علف جديد</h3>
+                    <div className="flex gap-2 mb-2">
+                        <select className="flex-1 p-3 bg-gray-50 border rounded-xl" value={newFeed.type} onChange={e=>setNewFeed({...newFeed, type:e.target.value})}>
+                            {FEED_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <select className="flex-1 p-3 bg-gray-50 border rounded-xl" value={newFeed.unit} onChange={e=>setNewFeed({...newFeed, unit:e.target.value})}>
+                            {UNITS.map(u=><option key={u} value={u}>{u}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex gap-2 mb-2"><Input placeholder="الكمية" type="number" value={newFeed.quantity} onChange={e=>setNewFeed({...newFeed, quantity:e.target.value})}/><Input placeholder="سعر الوحدة" type="number" value={newFeed.price} onChange={e=>setNewFeed({...newFeed, price:e.target.value})}/></div>
+                    
+                    <div className="bg-gray-50 p-2 rounded-lg mb-2">
+                        <p className="text-xs font-bold text-gray-400 mb-1">بيانات التاجر</p>
+                        <Input placeholder="اسم التاجر" value={newFeed.merchantName} onChange={e=>setNewFeed({...newFeed, merchantName:e.target.value})}/>
+                        <div className="flex gap-2">
+                            <Input placeholder="المكان" value={newFeed.merchantLoc} onChange={e=>setNewFeed({...newFeed, merchantLoc:e.target.value})}/>
+                            <Input placeholder="الهاتف" value={newFeed.merchantPhone} onChange={e=>setNewFeed({...newFeed, merchantPhone:e.target.value})}/>
+                        </div>
+                    </div>
+                    <Button onClick={handleBuy} variant="success" className="w-full">إضافة للمخزون</Button>
+                </Card>
+            )}
+
+            {view === 'use' && (
+                <Card className="animate-slide-up">
+                    <h3 className="font-bold mb-3 flex items-center gap-2 text-orange-700"><TrendingDown size={18}/> تسجيل استهلاك</h3>
+                    <Input type="date" label="تاريخ الاستهلاك" value={consumption.date} onChange={e=>setConsumption({...consumption, date:e.target.value})}/>
+                    <select className="w-full p-3 mb-3 bg-gray-50 border rounded-xl" value={consumption.type} onChange={e=>setConsumption({...consumption, type:e.target.value})}><option value="">اختر النوع...</option>{getStock().map(s=><option key={s.type} value={s.type}>{s.type} (متوفر: {s.qty} {s.unit})</option>)}</select>
+                    <Input placeholder="الكمية المستهلكة" type="number" value={consumption.quantity} onChange={e=>setConsumption({...consumption, quantity:e.target.value})}/>
+                    <Button onClick={handleConsume} variant="warning" className="w-full">خصم من المخزون</Button>
+                </Card>
+            )}
+
+            {view === 'report' && (
+                <div className="space-y-4 animate-slide-up">
+                    <Card>
+                        <h3 className="font-bold text-sm mb-3 flex gap-2"><FileText size={16}/> سجل المشتريات (مقارنة التجار)</h3>
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-right">
+                            <thead className="bg-gray-100 text-gray-600 font-bold"><tr><th className="p-2">التاريخ</th><th className="p-2">التاجر</th><th className="p-2">الصنف</th><th className="p-2">السعر</th></tr></thead>
+                            <tbody>
+                                {feedRecords.slice().reverse().map(r => (
+                                    <tr key={r.id} className="border-b">
+                                        <td className="p-2">{formatDate(r.date)}</td>
+                                        <td className="p-2 font-bold">{r.merchantName || '-'}<br/><span className="text-[9px] text-gray-400">{r.merchantLoc}</span></td>
+                                        <td className="p-2">{r.type}<br/>{r.quantity} {r.unit}</td>
+                                        <td className="p-2 font-bold text-blue-600">{r.price}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        </div>
+                    </Card>
+                    <Card>
+                        <h3 className="font-bold text-sm mb-3 flex gap-2"><TrendingDown size={16}/> سجل الاستهلاك</h3>
+                        <div className="space-y-2">
+                             {feedConsumption.slice().reverse().map(c => (
+                                 <div key={c.id} className="flex justify-between bg-gray-50 p-2 rounded text-xs">
+                                     <span>{formatDate(c.date)}</span>
+                                     <span className="font-bold">{c.type}</span>
+                                     <span className="text-red-500 font-bold">-{c.quantity}</span>
+                                 </div>
+                             ))}
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
   };
